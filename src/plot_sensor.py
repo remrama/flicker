@@ -1,5 +1,6 @@
 
 # trying to plot the sensor data live
+# add sim flag if no duino present
 
 import sys
 import time
@@ -14,13 +15,27 @@ import pyqtgraph as pg
 SERIAL_NAME = '/dev/cu.usbmodem52417201'
 EXPORT_FNAME = './data_{:s}.npy'.format(time.strftime('%Y%m%d%H%M%S'))
 
-# TODO: add timeout and baudrate args
-duino = serial.Serial(SERIAL_NAME)
+SIMULATE = sys.argv[-1]=='sim'
+
+if not SIMULATE:
+    # TODO: add timeout and baudrate args
+    duino = serial.Serial(SERIAL_NAME)
 # initialize data structures
 data = []
 stamps = []
 hbeats = []
 
+
+def simulate_serial():
+    return [np.random.normal(500,100)] # as list to match receive_serial output
+
+def receive_serial():
+    '''grab data from the teensy by checking serial port'''
+    ser_str = duino.readline()
+    # sometimes 2 vals get sent
+    sep = ser_str.split('\r')
+    vals = [ float(x) for x in sep if x.isalnum() ]
+    return vals
 
 def look4signal():
     '''Detect heartbeat signal in an array.
@@ -115,11 +130,10 @@ class MyWidg(QtGui.QWidget):
         self.timer.start(0) # call custom function every x seconds
 
     def update_data(self):
-        '''grab data from the teensy by checking serial port'''
-        ser_str = duino.readline()
-        # sometimes 2 vals get sent
-        sep = ser_str.split('\r')
-        vals = [ float(x) for x in sep if x.isalnum() ]
+        if not SIMULATE:
+            vals = receive_serial()
+        else:
+            vals = simulate_serial()
         stamp = time.time()
         for v in vals:
             # everything should be appended at once
