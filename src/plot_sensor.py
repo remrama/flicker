@@ -113,8 +113,17 @@ class MyWidg(QtGui.QWidget):
 
         # instantiate the line to hold data on plot
         self.curve = plotw.plot()
+        # ## TODO: consider this for speed (from examples)
+        # # Use automatic downsampling and clipping to reduce the drawing load
+        # p3.setDownsampling(mode='peak')
+        # p4.setDownsampling(mode='peak')
+        # p3.setClipToView(True)
+
         # set y axis limits to prevent auto-updating
         plotw.setYRange(0,1023)
+        plotw.setXRange(0,1000)
+        plotw.setLabel('left','Value',units='V')
+        plotw.getAxis('bottom').setTicks([])
 
         # choose size and title of window
         # self.setGeometry(300,300,300,300)
@@ -147,7 +156,7 @@ class MyWidg(QtGui.QWidget):
         # grab only last N points
         xdata = np.array(data[-self.n_xpoints:],dtype='float64')
         self.curve.setData(xdata)
-        app.processEvents()
+        # app.processEvents() # force complete redraw for every plot
         # ALSO check data for signal
         heartbeat = look4signal()
         # print heartbeat
@@ -155,7 +164,7 @@ class MyWidg(QtGui.QWidget):
         if heartbeat == 1:
             # TODO: should this item be a QtGui.QListWidgetItem ??
             self.listw.addItem('{:.02f}, HEARTBEAT'.format(time.time()-t0))
-            app.processEvents() # necessary??
+            # app.processEvents() # necessary??
 
     def save(self):
         # save as numpy binary
