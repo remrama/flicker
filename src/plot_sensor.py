@@ -2,6 +2,9 @@
 # trying to plot the sensor data live
 # add sim flag if no duino present
 
+from collections import deque
+from itertools import islice
+
 import sys
 import time
 import serial
@@ -13,17 +16,29 @@ import pyqtgraph as pg
 
 # initialize variables
 SERIAL_NAME = '/dev/cu.usbmodem52417201'
-EXPORT_FNAME = './data_{:s}.npy'.format(time.strftime('%Y%m%d%H%M%S'))
+EXPORT_FNAME = './data.csv' #time.strftime('%Y%m%d%H%M%S')
 
-SIMULATE = sys.argv[-1]=='sim'
+N_XPOINTS = 1000 # limits data in plot window
+REFRACTORY_SECS = 2 # time to go idle after a detected signal
 
-if not SIMULATE:
-    # TODO: add timeout and baudrate args
+# placeholder for timestamp of flicks
+time_last_flick = 0
+
+# open file with columns names
+COLUMNS = ['stamp','data','flick']
+with open(EXPORT_FNAME,'w') as newfile:
+    newfile.write(','.join(COLUMNS))
+
+
+# TODO: add timeout and baudrate args
+try:
     duino = serial.Serial(SERIAL_NAME)
-# initialize data structures
-data = []
-stamps = []
-hbeats = []
+except serial.serialutil.SerialException:
+    duino = None
+
+# initialize list for holding data buffer
+data = deque(maxlen=N_XPOINTS)
+stamps = deque(maxlen=N_XPOINTS)
 
 
 def simulate_serial():
@@ -46,30 +61,18 @@ def look4signal():
         - 1 for found signal
         - .5 for found signal but soon after signal
     '''
-    N_VALS = 100 # take the last N values from all data
-    data2search = data[-N_VALS:]
-
-    if len(data2search) < N_VALS:
+    N_VALS = 100 # take the last N values from all data    
+    if len(data) < N_VALS:
         # skip beginning of stream
-        return np.nan
+        return 0
     else:
+        data2search = list(islice(reversed(data),0,N_VALS)) # ugly slice bc of deque
         # check for signal
         # TEMP: check for heartbeat by looking for a "sharp rise",
         #       by looking for X datapoints mostly increasing
         # grab last 50 datapoints
-        present = np.mean(np.diff(data2search)>0) > .5
-        # choose output value
-        if present:
-            # if signal was recently detected, don't trigger
-            # FOR NOW just see if there was a signal in recent samples
-            if hbeats[-N_VALS:].count(1): # check for 1's
-                outval = .5
-            else:
-                outval = 1
-        else:
-            outval = 0
-
-        return outval
+        present = np.mean(np.diff(data2search)>0) > .7
+        return present
 
 
 
@@ -81,7 +84,7 @@ app = QtGui.QApplication([])
 class MyWidg(QtGui.QWidget):
     '''will run until Xed out'''
 
-    def __init__(self,n_xpoints=1000):
+    def __init__(self,n_xpoints=N_XPOINTS):
         '''
         ARGS
         n_xpoints : limits data in plot window
@@ -97,7 +100,7 @@ class MyWidg(QtGui.QWidget):
 
         # create subwidgets?
         self.listw = QtGui.QListWidget()
-        plotw = pg.PlotWidget()
+        self.plotw = pg.PlotWidget()
 
         # intialize some text in textspace
         self.listw.addItem(QtGui.QListWidgetItem('desired_updates_here'))
@@ -106,24 +109,23 @@ class MyWidg(QtGui.QWidget):
         grid = QtGui.QGridLayout()
         # add widgets to the grid/layout in their proper positions
         grid.addWidget(self.listw,0,0,2,1) # list widget goes on left, spanning 2 rows
-        grid.addWidget(plotw,0,1,2,1) # plot goes on right side, spanning 2 rows
+        grid.addWidget(self.plotw,0,1,2,1) # plot goes on right side, spanning 2 rows
 
         # add this layout to the current class
         self.setLayout(grid)
 
         # instantiate the line to hold data on plot
-        self.curve = plotw.plot()
+        self.curve = self.plotw.plot()
         # ## TODO: consider this for speed (from examples)
         # # Use automatic downsampling and clipping to reduce the drawing load
-        # p3.setDownsampling(mode='peak')
-        # p4.setDownsampling(mode='peak')
-        # p3.setClipToView(True)
+        # self.plotw.setDownsampling(mode='peak')
+        # self.plotw.setClipToView(True)
 
         # set y axis limits to prevent auto-updating
-        plotw.setYRange(0,1023)
-        plotw.setXRange(0,1000)
-        plotw.setLabel('left','Value',units='V')
-        plotw.getAxis('bottom').setTicks([])
+        self.plotw.setYRange(0,1023)
+        self.plotw.setXRange(0,1000)
+        self.plotw.setLabel('left','Value',units='V')
+        self.plotw.getAxis('bottom').setTicks([])
 
         # choose size and title of window
         # self.setGeometry(300,300,300,300)
@@ -139,42 +141,50 @@ class MyWidg(QtGui.QWidget):
         self.timer.start(0) # call custom function every x seconds
 
     def update_data(self):
-        if not SIMULATE:
+        try:
             vals = receive_serial()
-        else:
+        except AttributeError: # since duino is None-type if no duino
             vals = simulate_serial()
         stamp = time.time()
-        for v in vals:
-            # everything should be appended at once
-            # print v
-            data.append(v)
-            stamps.append(stamp)
-            # have to append a NaN on hbeats to keep the lengths
-            # consistent then just replace it if it makes it there
-            hbeats.append(np.nan)
+        ## TODO: currently this only includes the last
+        ## _if_ multiple values come thu serial at once
+        v = vals[-1]
 
-        # grab only last N points
-        xdata = np.array(data[-self.n_xpoints:],dtype='float64')
+        # update data buffer
+        data.append(v)
+        stamps.append(stamp)
+
+        # update plot
+        xdata = np.array(data,dtype='float64')
         self.curve.setData(xdata)
+        if len(stamps) > 1:
+            self.plotw.setTitle('{:.02f} fps'.format(1./np.mean(np.diff(stamps))))
         # app.processEvents() # force complete redraw for every plot
         # ALSO check data for signal
-        heartbeat = look4signal()
+        # dont check soon after a found signal
+        if stamp - time_last_flick > REFRACTORY_SECS:
+            flick_found = look4signal()
+        else:
+            flick_found = 0
         # print heartbeat
-        hbeats[-len(vals):] = np.repeat(heartbeat,len(vals))
-        if heartbeat == 1:
+        if flick_found:
             # TODO: should this item be a QtGui.QListWidgetItem ??
-            self.listw.addItem('{:.02f}, HEARTBEAT'.format(time.time()-t0))
+            self.listw.addItem('{:.02f}, SACCADE'.format(time.time()-t0))
             # app.processEvents() # necessary??
 
-    def save(self):
-        # save as numpy binary
-        np.save(EXPORT_FNAME,np.column_stack([stamps,data,hbeats]))
-        print 'data saved'
+        # self.save(outlist=[stamp,v,heartbeat])
+
+
+    def save(self,outlist):
+        '''Appends existing file.
+        outlist : 1 value for each column
+        '''
+        with open(EXPORT_FNAME,'a') as outfile:
+            outfile.write('\n'+','.join([ str(x) for x in outlist ]))
 
     def closeEvent(self,event):
         '''this will execute upon closing window via "Xing out" window
         '''
-        self.save()
         sys.exit()
         # self.SaveSettings()
         # # report_session()
