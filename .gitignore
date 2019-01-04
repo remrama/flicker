@@ -1,0 +1,8 @@
+.DS_Store
+*.pyc
+
+docs/
+lit/
+SCRATCH.md
+
+data_2*

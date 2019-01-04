@@ -1,0 +1,14 @@
+# $ conda env create --file environment.yml
+
+name: flicker
+
+dependencies:
+  - python=2.7
+  - pyserial
+  - numpy
+  - scipy
+  - pyqtgraph
+
+  # for development
+  - ipython
+  - matplotlib
