@@ -29,7 +29,7 @@ REFRACTORY_SECS = 2 # time to go idle after a detected signal
 # placeholders
 time_last_flick = 0
 saving = False
-plotting = True
+plotting = False
 
 
 # set up logging
@@ -96,7 +96,7 @@ def look4signal():
     global time_last_flick
     if (len(data) < N_VALS) or (
         time.time()-time_last_flick < REFRACTORY_SECS):
-        # skip soon after a found signal or beginning of stream
+        # skip beginning of stream or soon after a found signal
         pass
     else:
         # grab a subset of data buffer
@@ -113,7 +113,6 @@ def look4signal():
 
 
 
-
 class Window(pg.QtGui.QWidget):
     '''Main window display. Maybe overkill.
     '''
@@ -127,13 +126,11 @@ class Window(pg.QtGui.QWidget):
         self.listw = pg.QtGui.QListWidget()
         self.svbutton = pg.QtGui.QPushButton('Save')
         self.svbutton.setCheckable(True)
-        self.svbutton.clicked.connect(self.handleSaveBtn)
-        self.plbutton = pg.QtGui.QPushButton('Plotting')
+        self.svbutton.clicked.connect(self.handleBtn)
+        self.plbutton = pg.QtGui.QPushButton('Plot')
         self.plbutton.setCheckable(True)
-        self.plbutton.clicked.connect(self.handlePlotBtn)
-        self.plbutton.toggle()
-        self.svbutton.setText('Saving' if saving else 'Save')
-        self.listw.addItem('{}, STARTED plotting'.format(time.strftime('%m/%d-%H:%M:%S')))
+        self.plbutton.clicked.connect(self.handleBtn)
+        self.plbutton.click()
 
         # manage the location/size of widgets
         grid = pg.QtGui.QGridLayout()
@@ -167,23 +164,25 @@ class Window(pg.QtGui.QWidget):
 
         self.show()
 
-    def handleSaveBtn(self):
-        global saving
-        saving = self.svbutton.isChecked()
-        stamp = time.strftime('%m/%d-%H:%M:%S')
-        self.svbutton.setText('Saving' if saving else 'Save')
-        self.listw.addItem('{}, {:s} saving'.format(
-            stamp,'STARTED' if saving else 'STOPPED'))
-        if saving:
-            start_new_outfile()
-
-    def handlePlotBtn(self):
-        global plotting
-        plotting ^= 1
-        stamp = time.strftime('%m/%d-%H:%M:%S')
-        self.plbutton.setText('Plotting' if plotting else 'Plot')
-        self.listw.addItem('{}, {:s} plotting'.format(
-            stamp,('STARTED' if plotting else 'STOPPED')))
+    def handleBtn(self):
+        '''Handles both plotting and saving buttons, since
+        they do the same thing really.
+        .sender() provides access to the button
+        Switches appropriate bool and send msg to log&disp.
+        '''
+        global saving, plotting
+        btn_txt = self.sender().text()
+        act_txt = 'started' if self.sender().isChecked() else 'stopped'
+        if btn_txt == 'Save':
+            saving ^= 1
+            if saving:
+                start_new_outfile()
+        else:
+            plotting ^= 1
+        msg = '{button} {action}'.format(button=btn_txt,action=act_txt)
+        self.listw.addItem('{stamp}, {msg}'.format(
+            stamp=time.strftime('%m/%d-%H:%M:%S'),msg=msg))
+        logging.info(msg)
 
     def update_plot(self):
         grab_data()
@@ -197,8 +196,8 @@ class Window(pg.QtGui.QWidget):
 
 
 if __name__ == '__main__':
-    logging.info('App started')
     app = pg.QtGui.QApplication([])
+    logging.info('App started')
     t0 = time.time() # for x-axis
     win = Window()
     sys.exit(app.exec_())
