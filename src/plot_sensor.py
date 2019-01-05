@@ -39,18 +39,50 @@ except serial.serialutil.SerialException:
 # initialize list for holding data buffer
 data = deque(maxlen=N_XPOINTS)
 stamps = deque(maxlen=N_XPOINTS)
+flicks = deque(maxlen=N_XPOINTS)
 
 
-def simulate_serial():
-    return [np.random.normal(500,100)] # as list to match receive_serial output
+def grab_data():
+    '''Grab data from the teensy by checking serial port.
+    Doesn't return anything, just appends to existing lists.
+    '''
+    try:
+        # receive from serial
+        ser_str = duino.readline()
+        # sometimes 2 vals get sent
+        sep = ser_str.split('\r')
+        vals = [ float(x) for x in sep if x.isalnum() ]
+    except AttributeError: # since duino is None-type if no duino
+        # simulate serial
+        vals = [np.random.normal(500,100)] # as list to match receive_serial output
 
-def receive_serial():
-    '''grab data from the teensy by checking serial port'''
-    ser_str = duino.readline()
-    # sometimes 2 vals get sent
-    sep = ser_str.split('\r')
-    vals = [ float(x) for x in sep if x.isalnum() ]
-    return vals
+    stamp = time.time()
+
+    ## TODO: currently this only includes the last
+    ## _if_ multiple values come thu serial at once
+    v = vals[-1]
+
+    # update data buffer
+    data.append(v)
+    stamps.append(stamp)
+
+    # check data for signal
+    flick_found = look4signal()
+    flicks.append(flick_found)
+
+    # save
+    saverow(outlist=[stamp,v,flick_found])
+
+
+def saverow(outlist):
+    '''Appends existing file.
+    outlist : 1 value for each column
+    '''
+    with open(EXPORT_FNAME,'a') as outfile:
+        outfile.write('\n'+','.join([ str(x) for x in outlist ]))
+
+
+
 
 def look4signal():
     '''Detect heartbeat signal in an array.
@@ -62,8 +94,8 @@ def look4signal():
         - .5 for found signal but soon after signal
     '''
     N_VALS = 100 # take the last N values from all data    
-    if len(data) < N_VALS:
-        # skip beginning of stream
+    if (time.time()-time_last_flick < REFRACTORY_SECS) or (len(data) < N_VALS):
+        # skip soon after a found signal and beginning of stream 
         return 0
     else:
         data2search = list(islice(reversed(data),0,N_VALS)) # ugly slice bc of deque
@@ -71,8 +103,8 @@ def look4signal():
         # TEMP: check for heartbeat by looking for a "sharp rise",
         #       by looking for X datapoints mostly increasing
         # grab last 50 datapoints
-        present = np.mean(np.diff(data2search)>0) > .7
-        return present
+        flick_found = np.mean(np.diff(data2search)>0) > .7
+        return flick_found
 
 
 
@@ -137,50 +169,22 @@ class MyWidg(QtGui.QWidget):
         # open timer, which is what repeatedly runs the custom
         # function to check serial and plot incoming values
         self.timer = QtCore.QTimer() # create a timer
-        self.timer.timeout.connect(self.update_data) # connect it to custom function
+        self.timer.timeout.connect(self.update_plot) # connect it to custom function
         self.timer.start(0) # call custom function every x seconds
 
-    def update_data(self):
-        try:
-            vals = receive_serial()
-        except AttributeError: # since duino is None-type if no duino
-            vals = simulate_serial()
-        stamp = time.time()
-        ## TODO: currently this only includes the last
-        ## _if_ multiple values come thu serial at once
-        v = vals[-1]
-
-        # update data buffer
-        data.append(v)
-        stamps.append(stamp)
-
-        # update plot
+    def update_plot(self):
+        grab_data()
         xdata = np.array(data,dtype='float64')
         self.curve.setData(xdata)
         if len(stamps) > 1:
             self.plotw.setTitle('{:.02f} fps'.format(1./np.mean(np.diff(stamps))))
         # app.processEvents() # force complete redraw for every plot
-        # ALSO check data for signal
-        # dont check soon after a found signal
-        if stamp - time_last_flick > REFRACTORY_SECS:
-            flick_found = look4signal()
-        else:
-            flick_found = 0
         # print heartbeat
-        if flick_found:
+        if flicks[-1]:
             # TODO: should this item be a QtGui.QListWidgetItem ??
             self.listw.addItem('{:.02f}, SACCADE'.format(time.time()-t0))
             # app.processEvents() # necessary??
 
-        # self.save(outlist=[stamp,v,heartbeat])
-
-
-    def save(self,outlist):
-        '''Appends existing file.
-        outlist : 1 value for each column
-        '''
-        with open(EXPORT_FNAME,'a') as outfile:
-            outfile.write('\n'+','.join([ str(x) for x in outlist ]))
 
     def closeEvent(self,event):
         '''this will execute upon closing window via "Xing out" window
