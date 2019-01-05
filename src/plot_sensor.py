@@ -10,15 +10,18 @@ from itertools import islice
 import sys
 import time
 import serial
+import logging
 import numpy as np
 
 import pyqtgraph as pg
 
 
+
 # initialize variables
 SERIAL_NAME = '/dev/cu.usbmodem52417201'
-EXPORT_FNAME = './data.csv'
-COLUMNS = ['stamp','data','flick']
+DATA_FNAME = './data.csv'
+LOG_FNAME = './data.log'
+COLUMNS = ['stamp','data']
 
 N_XPOINTS = 1000 # limits data in plot window
 REFRACTORY_SECS = 2 # time to go idle after a detected signal
@@ -28,29 +31,36 @@ time_last_flick = 0
 saving = False
 plotting = True
 
+
+# set up logging
+logging.basicConfig(filename=LOG_FNAME,
+                    filemode='w',
+                    level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
 # try to intialize connection with duino
 try:
     ## TODO: add timeout and baudrate args
     duino = serial.Serial(SERIAL_NAME)
 except serial.serialutil.SerialException:
+    logging.warning('No serial connection, simulating data')
     duino = None
 
 # initialize list for holding data buffer
 data = deque(maxlen=N_XPOINTS)
 stamps = deque(maxlen=N_XPOINTS)
-flicks = deque(maxlen=N_XPOINTS)
 
 
 def start_new_outfile():
     '''initializes file with column names only'''
-    with open(EXPORT_FNAME,'w') as newfile:
+    with open(DATA_FNAME,'w') as newfile:
         newfile.write(','.join(COLUMNS))
 
 def saverow(outlist):
     '''Appends existing file.
     outlist : 1 value for each column
     '''
-    with open(EXPORT_FNAME,'a') as outfile:
+    with open(DATA_FNAME,'a') as outfile:
         outfile.write('\n'+','.join([ str(x) for x in outlist ]))
 
 def grab_data():
@@ -73,12 +83,9 @@ def grab_data():
     # update data buffer
     data.append(v)
     stamps.append(stamp)
-    # check data for signal
-    flick_found = look4signal()
-    flicks.append(flick_found)
     # save
     if saving:
-        saverow(outlist=[stamp,v,flick_found])
+        saverow(outlist=[stamp,v])
 
 
 def look4signal():
@@ -86,16 +93,23 @@ def look4signal():
     This is filler atm.
     '''
     N_VALS = 100 # take the last N values from data buffer
-    if (time.time()-time_last_flick < REFRACTORY_SECS) or (len(data) < N_VALS):
+    global time_last_flick
+    if (len(data) < N_VALS) or (
+        time.time()-time_last_flick < REFRACTORY_SECS):
         # skip soon after a found signal or beginning of stream
-        return False
+        pass
     else:
         # grab a subset of data buffer
         data2search = list(islice(reversed(data),0,N_VALS)) # ugly slice bc of deque
         # check for signal
         flick_found = np.mean(np.diff(data2search)>0) > .7
-        return flick_found
-
+        if flick_found:
+            logging.critical('Flick detected')
+            time_last_flick = time.time()
+            # send to pyqt display
+            win.listw.addItem('{:s}, SACCADE'.format(time.strftime('%m/%d-%H:%M:%S')))
+            # TODO: should this item be a QtGui.QListWidgetItem ??
+            # app.processEvents() # necessary??
 
 
 
@@ -130,10 +144,11 @@ class Window(pg.QtGui.QWidget):
         self.setLayout(grid)
 
         # plot aesthetics
-        self.plotw.setXRange(0,N_XPOINTS)
+        # self.plotw.setXRange(0,N_XPOINTS)
         self.plotw.setYRange(0,1023)
         self.plotw.setLabel('left','Voltage',units='V')
-        self.plotw.getAxis('bottom').setTicks([])
+        self.plotw.setLabel('bottom','Time passed',units='s')
+        # self.plotw.getAxis('bottom').setTicks([])
         self.setWindowTitle('flicker')
         # self.setGeometry(300,300,300,300)
         
@@ -173,19 +188,17 @@ class Window(pg.QtGui.QWidget):
     def update_plot(self):
         grab_data()
         if plotting:
-            self.curve.setData(data)
+            self.curve.setData((np.array(stamps)-t0),data)
         if len(stamps) > 1: # report frequency
             self.plotw.setTitle('{:.02f} Hz'.format(1./np.mean(np.diff(stamps))))
         # app.processEvents() # force complete redraw for every plot
-        if flicks[-1]: # report signal being detected
-            # TODO: should this item be a QtGui.QListWidgetItem ??
-            self.listw.addItem('{:s}, SACCADE'.format(time.strftime('%m/%d-%H:%M:%S')))
-            # app.processEvents() # necessary??
-
+        look4signal()
 
 
 
 if __name__ == '__main__':
+    logging.info('App started')
     app = pg.QtGui.QApplication([])
+    t0 = time.time() # for x-axis
     win = Window()
     sys.exit(app.exec_())
