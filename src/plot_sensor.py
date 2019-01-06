@@ -11,17 +11,20 @@ import sys
 import time
 import serial
 import logging
+import threading
 import numpy as np
 
 import pyqtgraph as pg
-
+import sounddevice as sd
 
 
 # initialize variables
 SERIAL_NAME = '/dev/cu.usbmodem52417201'
-DATA_FNAME = './data.csv'
 LOG_FNAME = './data.log'
-COLUMNS = ['stamp','data']
+DATA_FNAME = './data.csv'
+COLUMNS = ['stamp','data'] # of the output file
+SOUND_FNAMES = dict(left='./sounds/left.npy',
+                    right='./sounds/right.npy')
 
 N_XPOINTS = 1000 # limits data in plot window
 REFRACTORY_SECS = 2 # time to go idle after a detected signal
@@ -46,6 +49,9 @@ except serial.serialutil.SerialException:
     logging.warning('No serial connection, simulating data')
     duino = None
 
+# load the audio files
+sounds = { k: np.load(v) for k, v in SOUND_FNAMES.items() }
+
 # initialize list for holding data buffer
 data = deque(maxlen=N_XPOINTS)
 stamps = deque(maxlen=N_XPOINTS)
@@ -62,6 +68,12 @@ def saverow(outlist):
     '''
     with open(DATA_FNAME,'a') as outfile:
         outfile.write('\n'+','.join([ str(x) for x in outlist ]))
+
+def log_and_display(qtwin,msg):
+    logging.info(msg)
+    stamp = time.strftime('%m/%d-%H:%M:%S')
+    qtwin.listw.addItem('{:s}, {:s}'.format(stamp,msg))
+
 
 def grab_data():
     '''Grab data from the teensy by checking serial port.
@@ -131,13 +143,17 @@ class Window(pg.QtGui.QWidget):
         self.plbutton.setCheckable(True)
         self.plbutton.clicked.connect(self.handleBtn)
         self.plbutton.click()
+        self.recbutton = pg.QtGui.QPushButton('Play audio')
+        self.recbutton.setCheckable(True)
+        self.recbutton.clicked.connect(self.handleRcBtn)
 
         # manage the location/size of widgets
         grid = pg.QtGui.QGridLayout()
         grid.addWidget(self.svbutton,0,0)
         grid.addWidget(self.plbutton,1,0)
-        grid.addWidget(self.listw,2,0)
-        grid.addWidget(self.plotw,0,1,3,1)
+        grid.addWidget(self.recbutton,2,0)
+        grid.addWidget(self.listw,3,0)
+        grid.addWidget(self.plotw,0,1,4,1)
         self.setLayout(grid)
 
         # plot aesthetics
@@ -180,9 +196,33 @@ class Window(pg.QtGui.QWidget):
         else:
             plotting ^= 1
         msg = '{button} {action}'.format(button=btn_txt,action=act_txt)
-        self.listw.addItem('{stamp}, {msg}'.format(
-            stamp=time.strftime('%m/%d-%H:%M:%S'),msg=msg))
-        logging.info(msg)
+        log_and_display(self,msg)
+
+    def handleRcBtn(self):
+        '''For recording. Plays audio (words left/right)
+        and logs timestamps, for syncing with data files.
+        Once pressed, should play a series of sounds 
+        separated by a few seconds.
+        '''
+        BETWEEN_SOUNDS = 5 # seconds
+        N_SOUNDS = 3 # randomize each sound
+        if not self.sender().isChecked():
+            ## TODO: any way to cancel/exit thread??
+            pass
+        else:
+            def play_sequence():
+                for i in range(N_SOUNDS):
+                    snd = sounds['left']
+                    sd.play(snd,samplerate=44100)
+                    log_and_display(self,"Played 'left'")
+                    time.sleep(BETWEEN_SOUNDS)
+                log_and_display(self,'Stopped audio')
+                if self.recbutton.isChecked():
+                    self.recbutton.click()
+            self.t = threading.Thread(target=play_sequence)
+            self.t.start()
+            log_and_display(self,'Started audio')
+
 
     def update_plot(self):
         grab_data()
