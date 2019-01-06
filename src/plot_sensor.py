@@ -204,8 +204,8 @@ class Window(pg.QtGui.QWidget):
         Once pressed, should play a series of sounds 
         separated by a few seconds.
         '''
-        BETWEEN_SOUNDS = 5 # seconds
-        N_SOUNDS = 3 # randomize each sound
+        BETWEEN_SOUNDS = 8 # seconds
+        N_SOUNDS = 5 # randomize each sound
         if not self.sender().isChecked():
             ## TODO: any way to cancel/exit thread??
             pass
