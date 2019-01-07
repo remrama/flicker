@@ -34,7 +34,6 @@ void loop() {
     // Serial.println(pyvalu);
     if (pyvalu=='1'){
         digitalWrite(BULB_PIN,HIGH);
-        delay(2000);
     } else {
         digitalWrite(BULB_PIN,LOW);
     }

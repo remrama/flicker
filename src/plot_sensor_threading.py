@@ -27,7 +27,7 @@ SOUND_FNAMES = dict(left='./sounds/left.npy',
                     right='./sounds/right.npy')
 
 N_XPOINTS = 1000 # limits data in plot window
-REFRACTORY_SECS = 2 # time to go idle after a detected signal
+REFRACTORY_SECS = 4 # time to go idle after a detected signal
 
 # placeholders
 time_last_flick = 0
@@ -70,6 +70,8 @@ def log_and_display(qtwin,msg):
     logging.info(msg)
     stamp = time.strftime('%m/%d-%H:%M:%S')
     qtwin.listw.addItem('{:s}, {:s}'.format(stamp,msg))
+    # TODO: should this item be a QtGui.QListWidgetItem ??
+    # app.processEvents() # necessary??
 
 
 class DataGrabber(pg.QtCore.QThread):
@@ -132,28 +134,28 @@ class DataGrabber(pg.QtCore.QThread):
 
 
 
-def look4signal():
+def look4signal(data_buffer):
     '''Always runs on the whole data list, which is constanly appended.
     This is filler atm.
     '''
     N_VALS = 100 # take the last N values from data buffer
     global time_last_flick
-    if (len(data) < N_VALS) or (
+    if (len(data_buffer) < N_VALS) or (
         time.time()-time_last_flick < REFRACTORY_SECS):
         # skip beginning of stream or soon after a found signal
         pass
     else:
         # grab a subset of data buffer
-        data2search = list(islice(reversed(data),0,N_VALS)) # ugly slice bc of deque
+        data2search = list(islice(reversed(data_buffer),0,N_VALS)) # ugly slice bc of deque
         # check for signal
-        flick_found = np.mean(np.diff(data2search)>0) > .7
+        flick_found = np.mean(np.diff(data2search)>0) > .5
         if flick_found:
-            logging.critical('Flick detected')
+            log_and_display(win,'Flick detected')
+            # send to duino
+            # win.myThread.msleep(100)
+            duino.write(bytes(1))
+            # time.sleep(1)
             time_last_flick = time.time()
-            # send to pyqt display
-            win.listw.addItem('{:s}, SACCADE'.format(time.strftime('%m/%d-%H:%M:%S')))
-            # TODO: should this item be a QtGui.QListWidgetItem ??
-            # app.processEvents() # necessary??
 
 
 
@@ -270,7 +272,7 @@ class Window(pg.QtGui.QWidget):
                 1./np.mean(np.diff(pstamps)),
                 1./np.mean(np.diff(xvals))))
         # app.processEvents() # force complete redraw for every plot
-        # look4signal()
+        look4signal(self.myThread.data)
 
 
 
