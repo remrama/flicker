@@ -29,6 +29,11 @@ SOUND_FNAMES = dict(left='./sounds/left.npy',
 N_XPOINTS = 1000 # limits data in plot window
 REFRACTORY_SECS = 4 # time to go idle after a detected signal
 
+# for conversion of input to volts
+MAX_ANALOG_VOLTS = 3.3
+ANALOG_READ_RESOLUTION = 13 # unique to teensy
+raw2volts = lambda x: MAX_ANALOG_VOLTS * x / float(2**ANALOG_READ_RESOLUTION)
+
 # placeholders
 time_last_flick = 0
 saving = False
@@ -112,7 +117,7 @@ class DataGrabber(pg.QtCore.QThread):
         ## TODO: currently this only includes the last
         ## _if_ multiple values come thu serial at once
         if len(vals) > 0:
-            v = vals[-1]
+            v = raw2volts(vals[-1])
             # update data buffer
             self.data.append(v)
             self.stamps.append(stamp)
@@ -192,7 +197,7 @@ class Window(pg.QtGui.QWidget):
 
         # plot aesthetics
         # self.plotw.setXRange(0,N_XPOINTS)
-        self.plotw.setYRange(0,1023)
+        self.plotw.setYRange(0,raw2volts(1023))
         self.plotw.setLabel('left','Voltage',units='V')
         self.plotw.setLabel('bottom','Time passed',units='s')
         # self.plotw.getAxis('bottom').setTicks([])
