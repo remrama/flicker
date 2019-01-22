@@ -19,7 +19,7 @@ import sounddevice as sd
 
 
 # initialize variables
-SERIAL_NAME = '/dev/cu.usbmodem52417201'
+SERIAL_NAME = '/dev/cu.usbmodem53254001' #'/dev/cu.usbmodem52417201'
 LOG_FNAME = './data.log'
 DATA_FNAME = './data.csv'
 COLUMNS = ['stamp','data'] # of the output file
