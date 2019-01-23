@@ -17,6 +17,7 @@ import numpy as np
 import pyqtgraph as pg
 import sounddevice as sd
 
+from myDetector import detector
 
 # initialize variables
 SERIAL_NAME = '/dev/cu.usbmodem53254001' #'/dev/cu.usbmodem52417201'
@@ -146,14 +147,16 @@ def look4signal(data_buffer):
     N_VALS = 100 # take the last N values from data buffer
     global time_last_flick
     if (len(data_buffer) < N_VALS) or (
-        time.time()-time_last_flick < REFRACTORY_SECS):
+        time.time()-time_last_flick < REFRACTORY_SECS) or (
+        not win.flbutton.isChecked()):
         # skip beginning of stream or soon after a found signal
         pass
     else:
         # grab a subset of data buffer
         data2search = list(islice(reversed(data_buffer),0,N_VALS)) # ugly slice bc of deque
         # check for signal
-        flick_found = np.mean(np.diff(data2search)>0) > .5
+        flick_found = detector(data2search)
+        # flick_found = np.mean(np.diff(data2search)>0) > .5
         if flick_found:
             log_and_display(win,'Flick detected')
             # send to duino
@@ -182,7 +185,10 @@ class Window(pg.QtGui.QWidget):
         self.plbutton.setCheckable(True)
         self.plbutton.clicked.connect(self.handleBtn)
         self.plbutton.click()
-        self.recbutton = pg.QtGui.QPushButton('Play audio')
+        self.flbutton = pg.QtGui.QPushButton('Detect')
+        self.flbutton.setCheckable(True)
+        self.flbutton.click() # default detection on
+        self.recbutton = pg.QtGui.QPushButton('Play instructs')
         self.recbutton.setCheckable(True)
         self.recbutton.clicked.connect(self.handleRcBtn)
 
@@ -190,9 +196,10 @@ class Window(pg.QtGui.QWidget):
         grid = pg.QtGui.QGridLayout()
         grid.addWidget(self.svbutton,0,0)
         grid.addWidget(self.plbutton,1,0)
-        grid.addWidget(self.recbutton,2,0)
-        grid.addWidget(self.listw,3,0)
-        grid.addWidget(self.plotw,0,1,4,1)
+        grid.addWidget(self.flbutton,2,0)
+        grid.addWidget(self.recbutton,3,0)
+        grid.addWidget(self.listw,4,0)
+        grid.addWidget(self.plotw,0,1,5,1)
         self.setLayout(grid)
 
         # plot aesthetics
