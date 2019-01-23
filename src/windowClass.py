@@ -21,7 +21,9 @@ class myWindow(pg.QtGui.QWidget):
         self.listw = pg.QtGui.QListWidget()
         self.savebox = pg.QtGui.QCheckBox('Save')
         self.plotbox = pg.QtGui.QCheckBox('Plot')
-        self.plotbox.setChecked(True) # default to plot on
+        self.detectbox = pg.QtGui.QCheckBox('Listen for flicks')
+        self.plotbox.setChecked(True) # default plot on
+        self.detectbox.setChecked(True) # default detection on
         self.recbutton = pg.QtGui.QPushButton('Play audio')
         self.recbutton.setCheckable(True)
         self.recbutton.clicked.connect(self.handleRcBtn)
@@ -30,9 +32,10 @@ class myWindow(pg.QtGui.QWidget):
         grid = pg.QtGui.QGridLayout()
         grid.addWidget(self.savebox,0,0)
         grid.addWidget(self.plotbox,1,0)
-        grid.addWidget(self.recbutton,2,0)
-        grid.addWidget(self.listw,3,0)
-        grid.addWidget(self.plotw,0,1,4,1)
+        grid.addWidget(self.detectbox,2,0)
+        grid.addWidget(self.recbutton,3,0)
+        grid.addWidget(self.listw,4,0)
+        grid.addWidget(self.plotw,0,1,5,1)
         self.setLayout(grid)
 
         # aesthetics
@@ -96,6 +99,13 @@ class myWindow(pg.QtGui.QWidget):
             self.t = threading.Thread(target=play_sequence)
             self.t.start()
             log_and_display(self,'Started audio')
+
+
+    @pg.QtCore.pyqtSlot(str) # maybe not necessary
+    def updateList(self,msg):
+        if self.plotbox.isChecked():
+            self.listw.addItem(msg)
+
 
 
     @pg.QtCore.pyqtSlot(deque,deque,deque) # maybe not necessary

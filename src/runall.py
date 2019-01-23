@@ -18,11 +18,12 @@ if __name__ == '__main__':
     # and sent to the window for plotting 
     worker = myWorker()
     worker.signal4plot.connect(window.updatePlot)
+    worker.signal4list.connect(window.updateList)
     worker.moveToThread(thread)
     thread.started.connect(worker.keepGrabbingData)
 
-    # # data is also sent from the worker thread
-    # # to the signal detector for finding saccades
+    # # # data is also sent from the worker thread
+    # # # to the signal detector for finding saccades
     # detector = myDetector(worker.duino)
     # worker.detect_signal.connect(detector.check)
 

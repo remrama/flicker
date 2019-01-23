@@ -7,7 +7,7 @@ import pyqtgraph as pg
 from copy import copy
 
 
-SERIAL_NAME = '/dev/cu.usbmodem52417201'
+SERIAL_NAME = '/dev/cu.usbmodem53254001' #'/dev/cu.usbmodem52417201'
 BUFFER_LEN = 1000 # n data points kept in buffer
 DATA_FNAME = './data.csv'
 COLUMNS = ['stamp','data'] # of the output file
@@ -29,7 +29,8 @@ class myWorker(pg.QtCore.QObject):
                       buffer_len=BUFFER_LEN,
                       saving=False,
                       fname=DATA_FNAME,
-                      columns=COLUMNS):
+                      columns=COLUMNS,
+                      refractory_len=4):
 
         super(self.__class__,self).__init__()
 
@@ -38,6 +39,11 @@ class myWorker(pg.QtCore.QObject):
         self.saving = saving
         self.fname = fname
         self.columns = columns
+
+        ## for saccade-checker
+        self.last_flick = serial.time.time()
+        # time to go idle after a detected signal
+        self.refract_len = refractory_len # seconds
 
         # connect to serial
         try: # try to intialize connection with duino
@@ -58,7 +64,8 @@ class myWorker(pg.QtCore.QObject):
 
     # signal gets sent to the plotter with each "emit" call
     signal4plot = pg.QtCore.pyqtSignal(deque,deque,deque)
-    detect_signal = pg.QtCore.pyqtSignal(int)
+    # signal gets sent to event list if signal detected
+    signal4list = pg.QtCore.pyqtSignal(str)
 
 
     def _startNewFile(self):
@@ -72,6 +79,32 @@ class myWorker(pg.QtCore.QObject):
         '''
         with open(self.fname,'a') as outfile:
             outfile.write('\n'+','.join([ str(x) for x in rowlist ]))
+
+
+    def check(self):
+        '''Look for signal in data passed in.
+        '''
+        # # grab a subset of data buffer
+        # data2search = list(islice(reversed(self.data),0,self.buffer_len)) # ugly slice bc of deque
+        data2search = self.data # WHOLE THING
+
+        # check for signal
+        flick_found = np.mean(np.diff(data2search)>0) > .5
+
+        # handle flick
+        if flick_found:
+            # log_and_display(win,'Flick detected')
+            # send to duino
+            # win.myThread.msleep(100)
+            # duino.write(bytes(1))
+            # time.sleep(1)
+
+            # reset timer
+            self.last_flick = serial.time.time()
+            # send to duino
+            self.duino.write(bytes(1))
+            # send message to display
+            self.signal4list.emit('Found it')
 
 
     def keepGrabbingData(self):
@@ -113,7 +146,14 @@ class myWorker(pg.QtCore.QObject):
             self.pollstamps.append(stamp)
         # send signal to wherever it gets connected to
         self.signal4plot.emit(copy(self.stamps),copy(self.data),copy(self.pollstamps))
-        self.detect_signal.emit(copy(self.data))
+        
+        # check for saccade
+        # skip beginning of stream and soon after a found signal
+        if (len(self.data) >= self.buffer_len
+            ) and (serial.time.time()-self.last_flick > self.refract_len):
+
+            self.check()
+
         ## TEMP: better route than making copies?
         ## issue was that plot would fail early,
         ## i think bc "views" were being passed and deques would change
