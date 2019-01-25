@@ -2,5 +2,7 @@
 *.pyc
 
 docs/
+figures/
 lit/
+posters/
 SCRATCH.md
