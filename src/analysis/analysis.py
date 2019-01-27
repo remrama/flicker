@@ -16,6 +16,7 @@ plt_fname = '../../data/data{:02d}.png'.format(data_num)
 with open(log_fname,'r') as infile:
     logs = infile.read().split('\n')
 
+# val_fname = '/Users/remy/Desktop/data.csv'
 stamps, volts = np.loadtxt(val_fname,
                            skiprows=1,
                            delimiter=',',
@@ -25,12 +26,55 @@ stamps, volts = np.loadtxt(val_fname,
 
 
 # plot spectogram
-fs = 100 # sampling frequency
-f, t, Sxx = signal.spectrogram(volts,fs)
 
-plt.pcolormesh(t,f,Sxx)
-plt.ylabel('Frequency [Hz]')
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return np.nan_to_num(e_x / np.nan_to_num(e_x.sum(axis=0)))
+
+fs = 100. # sampling frequency in Hz
+window_duration = 0.1 # seconds
+window_samples = int(window_duration*fs)
+sample_overlap = window_samples-1 # None is not the same as 0
+window = 'boxcar'
+f, t, Sxx = signal.spectrogram(volts,fs,window,window_samples,sample_overlap)
+Sxx_soft = softmax(Sxx)
+
+# max_frequency = 50 # for plotting in Hz
+# plt.pcolormesh(t,f,Sxx_soft)
+# plt.ylabel('Frequency [Hz]')
+# plt.xlabel('Time [sec]')
+# plt.ylim(0,max_frequency)
+
+thresh = 0.999 # decoder output
+target_freq_band = 1 # index
+Sxx_thresh = Sxx_soft[target_freq_band,:]>=thresh
+
+plt.plot(t,Sxx_thresh)
+plt.plot(t,Sxx_soft[target_freq_band,:])
+plt.ylabel('Detection')
 plt.xlabel('Time [sec]')
+
+
+# fs = 100. # sampling frequency in Hz
+# window_duration = 0.1  #ssonds
+# window_samples = int(window_duration*fs)
+# sample_overlap = window_samples-1 # None is not the same as 0
+# window = 'boxcar'
+# f, t, Sxx = signal.spectrogram(volts,fs,window,window_samples,sample_overlap)
+# Sxx_soft = softmax(Sxx)
+
+# moving_avg_filter_duration = 1.0 # seconds 
+# moving_avg_filter_len = fs*moving_avg_filter_duration
+# filter_a = 1
+# filter_b = np.ones(int(moving_avg_filter_len))/moving_avg_filter_len
+
+# from scipy.signal import lfilter
+# Sxx_target_filt = lfilter(filter_b,filter_a,Sxx_soft[target_freq_band,:])
+
+# plt.plot(t,Sxx_target_filt)
+# plt.ylabel('Detection')
+# plt.xlabel('Time [sec]')
 
 
 

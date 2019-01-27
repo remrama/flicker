@@ -17,7 +17,7 @@ import numpy as np
 import pyqtgraph as pg
 import sounddevice as sd
 
-from myDetector import detector
+from myDetector import myDetector
 
 # initialize variables
 SERIAL_NAME = '/dev/cu.usbmodem53254001' #'/dev/cu.usbmodem52417201'
@@ -28,12 +28,13 @@ SOUND_FNAMES = dict(left='./sounds/left.npy',
                     right='./sounds/right.npy')
 
 N_XPOINTS = 1000 # limits data in plot window
-REFRACTORY_SECS = 4 # time to go idle after a detected signal
+REFRACTORY_SECS = 5 # time to go idle after a detected signal
 
 # for conversion of input to volts
 MAX_ANALOG_VOLTS = 3.3
 ANALOG_READ_RESOLUTION = 13 # unique to teensy
 raw2volts = lambda x: MAX_ANALOG_VOLTS * x / float(2**ANALOG_READ_RESOLUTION)
+# raw2volts = lambda x: x
 
 # placeholders
 time_last_flick = 0
@@ -58,7 +59,8 @@ except serial.serialutil.SerialException:
 # load the audio files
 sounds = { k: np.load(v) for k, v in SOUND_FNAMES.items() }
 
-
+# intialize signal detector
+detector = myDetector()
 
 def start_new_outfile():
     '''initializes file with column names only'''
@@ -118,7 +120,8 @@ class DataGrabber(pg.QtCore.QThread):
         ## TODO: currently this only includes the last
         ## _if_ multiple values come thu serial at once
         if len(vals) > 0:
-            v = raw2volts(vals[-1])
+            # v = raw2volts(vals[-1])
+            v = vals[-1]
             # update data buffer
             self.data.append(v)
             self.stamps.append(stamp)
@@ -140,24 +143,20 @@ class DataGrabber(pg.QtCore.QThread):
 
 
 
-def look4signal(data_buffer):
+def look4signal(data,stamps):
     '''Always runs on the whole data list, which is constanly appended.
     This is filler atm.
     '''
     N_VALS = 100 # take the last N values from data buffer
     global time_last_flick
-    if (len(data_buffer) < N_VALS) or (
-        time.time()-time_last_flick < REFRACTORY_SECS) or (
-        not win.flbutton.isChecked()):
-        # skip beginning of stream or soon after a found signal
-        pass
-    else:
+    if win.flbutton.isChecked():
         # grab a subset of data buffer
-        data2search = list(islice(reversed(data_buffer),0,N_VALS)) # ugly slice bc of deque
+        # data2search = list(islice(reversed(data_buffer),0,N_VALS)) # ugly slice bc of deque
         # check for signal
-        flick_found = detector(data2search)
-        # flick_found = np.mean(np.diff(data2search)>0) > .5
-        if flick_found:
+        sig_status = detector.update_status(list(data),list(stamps))
+        # print sig_status
+        if (sig_status == 'ongoing'
+            ) and (time.time()-time_last_flick > REFRACTORY_SECS):
             log_and_display(win,'Flick detected')
             # send to duino
             # win.myThread.msleep(100)
@@ -187,7 +186,7 @@ class Window(pg.QtGui.QWidget):
         self.plbutton.click()
         self.flbutton = pg.QtGui.QPushButton('Detect')
         self.flbutton.setCheckable(True)
-        self.flbutton.click() # default detection on
+        # self.flbutton.click() # default detection on
         self.recbutton = pg.QtGui.QPushButton('Play instructs')
         self.recbutton.setCheckable(True)
         self.recbutton.clicked.connect(self.handleRcBtn)
@@ -277,14 +276,14 @@ class Window(pg.QtGui.QWidget):
 
     def update_plot(self,xvals,yvals,pstamps):
         if plotting:
-            self.curve.setData((np.array(xvals)-t0),yvals)
+            self.curve.setData((np.array(xvals)-t0),raw2volts(np.array(yvals)))
             # self.curve.setData(xvals,yvals)
         if len(xvals) > 1: # report frequency/ies
             self.plotw.setTitle('{:.02f} / {:.02f} Hz'.format(
                 1./np.mean(np.diff(pstamps)),
                 1./np.mean(np.diff(xvals))))
         # app.processEvents() # force complete redraw for every plot
-        look4signal(self.myThread.data)
+        look4signal(yvals,xvals)
 
 
 

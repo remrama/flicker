@@ -74,7 +74,7 @@ void loop() {
     // read from python
     python_val = Serial.read(); // gets one byte from serial buffer
     if (python_val=='1') {
-        playFile("BACH.WAV");
+        playFile("WATER.WAV");
         // digitalWrite(BULB_PIN,HIGH);
         // delay(500);
     }
