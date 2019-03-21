@@ -6,6 +6,8 @@ import numpy as np
 import pyqtgraph as pg
 from copy import copy
 
+from myDetector import myDetector
+
 
 SERIAL_NAME = '/dev/cu.usbmodem53254001' #'/dev/cu.usbmodem52417201'
 BUFFER_LEN = 1000 # n data points kept in buffer
@@ -29,8 +31,7 @@ class myWorker(pg.QtCore.QObject):
                       buffer_len=BUFFER_LEN,
                       saving=False,
                       fname=DATA_FNAME,
-                      columns=COLUMNS,
-                      refractory_len=4):
+                      columns=COLUMNS):
 
         super(self.__class__,self).__init__()
 
@@ -39,11 +40,6 @@ class myWorker(pg.QtCore.QObject):
         self.saving = saving
         self.fname = fname
         self.columns = columns
-
-        ## for saccade-checker
-        self.last_flick = serial.time.time()
-        # time to go idle after a detected signal
-        self.refract_len = refractory_len # seconds
 
         # connect to serial
         try: # try to intialize connection with duino
@@ -59,6 +55,9 @@ class myWorker(pg.QtCore.QObject):
         self.pollstamps = deque(maxlen=self.buffer_len)
         ## TEMP just hvae pollstamps for testing
         ## to distinguish poll vs data incoming frequency
+
+        # initialize detector
+        self.detector = myDetector()
 
         self._startNewFile()
 
@@ -86,23 +85,20 @@ class myWorker(pg.QtCore.QObject):
         '''
         # # grab a subset of data buffer
         # data2search = list(islice(reversed(self.data),0,self.buffer_len)) # ugly slice bc of deque
-        data2search = self.data # WHOLE THING
-
-        # check for signal
-        flick_found = np.mean(np.diff(data2search)>0) > .5
+        # data2search = self.data # WHOLE THING
+        status = self.detector.update_status(list(self.data),list(self.stamps))
 
         # handle flick
-        if flick_found:
+        if status == 'rising':
             # log_and_display(win,'Flick detected')
             # send to duino
             # win.myThread.msleep(100)
             # duino.write(bytes(1))
             # time.sleep(1)
 
-            # reset timer
-            self.last_flick = serial.time.time()
             # send to duino
-            self.duino.write(bytes(1))
+            if self.duino is not None:
+                self.duino.write(bytes(1))
             # send message to display
             self.signal4list.emit('Found it')
 
@@ -149,8 +145,7 @@ class myWorker(pg.QtCore.QObject):
         
         # check for saccade
         # skip beginning of stream and soon after a found signal
-        if (len(self.data) >= self.buffer_len
-            ) and (serial.time.time()-self.last_flick > self.refract_len):
+        if (len(self.data) >= self.buffer_len):
 
             self.check()
 
