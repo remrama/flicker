@@ -1,8 +1,18 @@
 
+import logging
 from collections import deque
 
 import numpy as np
 import pyqtgraph as pg
+
+
+LOG_FNAME = './data.log'
+
+# set up logging
+logging.basicConfig(filename=LOG_FNAME,
+                    filemode='w',
+                    level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class myWindow(pg.QtGui.QWidget):
@@ -101,11 +111,18 @@ class myWindow(pg.QtGui.QWidget):
             log_and_display(self,'Started audio')
 
 
-    @pg.QtCore.pyqtSlot(str) # maybe not necessary
-    def updateList(self,msg):
+    @pg.QtCore.pyqtSlot(str,bool) # maybe not necessary
+    def updateLog(self,msg,warning=False):
+        # send to log file
+        if warning:
+            logging.warning(msg)
+        else:
+            logging.info(msg)
         if self.plotbox.isChecked():
-            self.listw.addItem(msg)
-
+            item = pg.QtGui.QListWidgetItem(msg)
+            if warning:
+                item.setForeground(pg.QtCore.Qt.red)
+            self.listw.addItem(item)
 
 
     @pg.QtCore.pyqtSlot(deque,deque,deque) # maybe not necessary

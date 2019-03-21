@@ -18,7 +18,7 @@ if __name__ == '__main__':
     # and sent to the window for plotting 
     worker = myWorker()
     worker.signal4plot.connect(window.updatePlot)
-    worker.signal4list.connect(window.updateList)
+    worker.signal4log.connect(window.updateLog)
     worker.moveToThread(thread)
     thread.started.connect(worker.keepGrabbingData)
 

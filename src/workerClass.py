@@ -27,6 +27,12 @@ class myWorker(pg.QtCore.QObject):
     Also saves data if told to.
     '''
 
+    # signal gets sent to the plotter with each "emit" call
+    signal4plot = pg.QtCore.pyqtSignal(deque,deque,deque)
+    # signal gets sent to event list if signal detected
+    signal4log = pg.QtCore.pyqtSignal(str,bool)
+
+
     def __init__(self,name=SERIAL_NAME,
                       buffer_len=BUFFER_LEN,
                       saving=False,
@@ -34,6 +40,7 @@ class myWorker(pg.QtCore.QObject):
                       columns=COLUMNS):
 
         super(self.__class__,self).__init__()
+
 
         self.name = SERIAL_NAME
         self.buffer_len = buffer_len
@@ -46,7 +53,6 @@ class myWorker(pg.QtCore.QObject):
             ## TODO: add timeout and baudrate args
             self.duino = serial.Serial(name)
         except serial.serialutil.SerialException:
-            # logging.warning('No serial connection, simulating data')
             self.duino = None
 
         # initialize empty lists for holding data/time buffers
@@ -60,12 +66,6 @@ class myWorker(pg.QtCore.QObject):
         self.detector = myDetector()
 
         self._startNewFile()
-
-    # signal gets sent to the plotter with each "emit" call
-    signal4plot = pg.QtCore.pyqtSignal(deque,deque,deque)
-    # signal gets sent to event list if signal detected
-    signal4list = pg.QtCore.pyqtSignal(str)
-
 
     def _startNewFile(self):
         '''initializes file with column names only'''
@@ -87,6 +87,9 @@ class myWorker(pg.QtCore.QObject):
         # data2search = list(islice(reversed(self.data),0,self.buffer_len)) # ugly slice bc of deque
         # data2search = self.data # WHOLE THING
         status = self.detector.update_status(list(self.data),list(self.stamps))
+        
+        if np.random.uniform() > .9:
+            self.signal4log.emit('Flick detected',False)
 
         # handle flick
         if status == 'rising':
@@ -100,10 +103,15 @@ class myWorker(pg.QtCore.QObject):
             if self.duino is not None:
                 self.duino.write(bytes(1))
             # send message to display
-            self.signal4list.emit('Found it')
+            self.signal4log.emit('Flick detected',False)
 
 
     def keepGrabbingData(self):
+        '''This is the function called to start thread.'''
+        # send some intro log messages
+        self.signal4log.emit('App started',False)
+        if self.duino is None:
+            self.signal4log.emit('No serial connection, simulating data',True)
         while True:
             self.grabData()
             serial.time.sleep(.001)
