@@ -123,3 +123,12 @@ class myWindow(pg.QtGui.QWidget):
         # app.processEvents() # force complete redraw for every plot
         # look4signal(self.myThread.data)
 
+    # override the default window shutdown behavior
+    def closeEvent(self,event):
+        quit_msg = 'Are you sure you want to exit?'
+        reply = pg.QtGui.QMessageBox.question(self,'Message',quit_msg,
+                    pg.QtGui.QMessageBox.Yes,pg.QtGui.QMessageBox.No)
+        if reply == pg.QtGui.QMessageBox.Yes:
+            event.accept()
+        else:
+            event.ignore()
