@@ -30,7 +30,7 @@ class myWorker(pg.QtCore.QObject):
     # signal gets sent to the plotter with each "emit" call
     signal4plot = pg.QtCore.pyqtSignal(deque,deque,deque)
     # signal gets sent to event list if signal detected
-    signal4log = pg.QtCore.pyqtSignal(str,bool)
+    signal4log = pg.QtCore.pyqtSignal(str,bool,float)
 
 
     def __init__(self,name=SERIAL_NAME,
@@ -88,9 +88,6 @@ class myWorker(pg.QtCore.QObject):
         # data2search = self.data # WHOLE THING
         status = self.detector.update_status(list(self.data),list(self.stamps))
         
-        if np.random.uniform() > .9:
-            self.signal4log.emit('Flick detected',False)
-
         # handle flick
         if status == 'rising':
             # log_and_display(win,'Flick detected')
@@ -102,16 +99,21 @@ class myWorker(pg.QtCore.QObject):
             # send to duino
             if self.duino is not None:
                 self.duino.write(bytes(1))
-            # send message to display
-            self.signal4log.emit('Flick detected',False)
+            # send message to display, with most recent x value for plotting
+            self.signal4log.emit('Flick detected',False,self.stamps[-1])
+
+        elif self.duino is None:
+            # give a random simulate flick signal
+            if np.random.uniform() > .99:
+                self.signal4log.emit('Flick detected',False,self.stamps[-1])
 
 
     def keepGrabbingData(self):
         '''This is the function called to start thread.'''
         # send some intro log messages
-        self.signal4log.emit('App started',False)
+        self.signal4log.emit('App started',False,0)
         if self.duino is None:
-            self.signal4log.emit('No serial connection, simulating data',True)
+            self.signal4log.emit('No serial connection, simulating data',True,0)
         while True:
             self.grabData()
             serial.time.sleep(.001)

@@ -62,7 +62,7 @@ class myWindow(pg.QtGui.QWidget):
         # aesthetics
         # self.plotw.setXRange(0,N_XPOINTS)
         self.plotw.setYRange(0,self.ymax)
-        self.plotw.setLabel('left','Voltage',units='V')
+        self.plotw.setLabel('left','Voltage',units='V') # can move to plot init too
         # self.plotw.setLabel('bottom','Time')
         # self.plotw.getAxis('bottom').setTicks([])
         self.setWindowTitle('flicker')
@@ -122,8 +122,8 @@ class myWindow(pg.QtGui.QWidget):
             log_and_display(self,'Started audio')
 
 
-    @pg.QtCore.pyqtSlot(str,bool) # maybe not necessary
-    def updateLog(self,msg,warning=False):
+    @pg.QtCore.pyqtSlot(str,bool,float) # maybe not necessary
+    def updateLog(self,msg,warning,xval):
         # send to log file
         if warning:
             logging.warning(msg)
@@ -134,6 +134,8 @@ class myWindow(pg.QtGui.QWidget):
             if warning:
                 item.setForeground(pg.QtCore.Qt.red)
             self.listw.addItem(item)
+            if xval:
+                self.plotw.addLine(x=xval,pen='g',name='flick')
 
 
     @pg.QtCore.pyqtSlot(deque,deque,deque) # maybe not necessary
@@ -141,10 +143,14 @@ class myWindow(pg.QtGui.QWidget):
         if self.plotbox.isChecked():
             # self.curve.setData((np.array(xvals)-t0),yvals)
             self.curve.setData(xvals,yvals)
-        # for i in range(100000):
-        #     pass
-        # self.curve.setData(xvals,yvals)
-        if len(xvals) > 1: # report frequency/ies
+        # check for lines drawn from flick detection,
+        # and remove if outside visible range (to avoid stretching)
+        # TODO: is this worth it?
+        for p in self.plotw.items():
+            if isinstance(p,pg.InfiniteLine) and p.x() < xvals[0]:
+                self.plotw.removeItem(p)
+        # report frequency/ies
+        if len(xvals) > 1:
             self.plotw.setTitle('{:.02f} / {:.02f} Hz'.format(
                 1./np.mean(np.diff(pstamps)),
                 1./np.mean(np.diff(xvals))))
