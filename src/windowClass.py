@@ -1,5 +1,6 @@
 
 import logging
+import datetime
 from collections import deque
 
 import numpy as np
@@ -14,6 +15,16 @@ logging.basicConfig(filename=LOG_FNAME,
                     level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
+ts2str = lambda ts: datetime.datetime.fromtimestamp(ts).strftime("%H:%M:%S")
+class TimeAxisItem(pg.AxisItem):
+    '''subclass to get timestamps on x axis
+    https://gist.github.com/friendzis/4e98ebe2cf29c0c2c232
+    '''
+    def __init__(self,*args,**kwargs):
+        super(self.__class__,self).__init__(*args,**kwargs)
+    def tickStrings(self,values,scale,spacing):
+        return [ ts2str(value) for value in values ]
+
 
 class myWindow(pg.QtGui.QWidget):
     '''Main window display. Maybe overkill.
@@ -27,7 +38,7 @@ class myWindow(pg.QtGui.QWidget):
 
     def initUI(self):
         # create all widgets for the main window
-        self.plotw = pg.PlotWidget()
+        self.plotw = pg.PlotWidget(axisItems={'bottom':TimeAxisItem(orientation='bottom')})
         self.listw = pg.QtGui.QListWidget()
         self.savebox = pg.QtGui.QCheckBox('Save')
         self.plotbox = pg.QtGui.QCheckBox('Plot')
@@ -52,7 +63,7 @@ class myWindow(pg.QtGui.QWidget):
         # self.plotw.setXRange(0,N_XPOINTS)
         self.plotw.setYRange(0,self.ymax)
         self.plotw.setLabel('left','Voltage',units='V')
-        self.plotw.setLabel('bottom','Time passed',units='s')
+        # self.plotw.setLabel('bottom','Time')
         # self.plotw.getAxis('bottom').setTicks([])
         self.setWindowTitle('flicker')
         # self.setGeometry(300,300,300,300)
