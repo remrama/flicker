@@ -74,6 +74,8 @@ class myWorker(pg.QtCore.QObject):
 
     def _saverow(self,rowlist):
         '''Appends existing file.
+        ARGS
+        ----
         rowlist : 1 value for each column
         '''
         with open(self.fname,'a') as outfile:

@@ -15,7 +15,8 @@ logging.basicConfig(filename=LOG_FNAME,
                     level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
-ts2str = lambda ts: datetime.datetime.fromtimestamp(ts).strftime("%H:%M:%S")
+
+ts2str = lambda ts: datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S')
 class TimeAxisItem(pg.AxisItem):
     '''subclass to get timestamps on x axis
     https://gist.github.com/friendzis/4e98ebe2cf29c0c2c232
@@ -27,8 +28,7 @@ class TimeAxisItem(pg.AxisItem):
 
 
 class myWindow(pg.QtGui.QWidget):
-    '''Main window display. Maybe overkill.
-    '''
+    '''Main window display.'''
     def __init__(self,ymax):
         super(self.__class__,self).__init__()
 
@@ -124,14 +124,26 @@ class myWindow(pg.QtGui.QWidget):
 
     @pg.QtCore.pyqtSlot(str,bool,float) # maybe not necessary
     def updateLog(self,msg,warning,xval):
+        '''
+        Receives <signal4log> from workerClass.
+        Exports msg to log file and prints it in GUI display
+        Plots vertical line at xval if flick was detected.
+
+        ARGS
+        ----
+        msg     : str, gets sent to log file and display
+        warning : bool, indicating if logging should use warning
+        xval    : float, timestamp of flick detected if detected (else 0)
+        '''
         # send to log file
         if warning:
             logging.warning(msg)
         else:
             logging.info(msg)
         if self.plotbox.isChecked():
+            # send to GUI display
             item = pg.QtGui.QListWidgetItem(msg)
-            if warning:
+            if warning: # change txt color
                 item.setForeground(pg.QtCore.Qt.red)
             self.listw.addItem(item)
             if xval:
@@ -140,6 +152,16 @@ class myWindow(pg.QtGui.QWidget):
 
     @pg.QtCore.pyqtSlot(deque,deque,deque) # maybe not necessary
     def updatePlot(self,xvals,yvals,pstamps):
+        '''
+        Receives <signal4plot> from workerClass.
+        Updates plot with new data and sampling rate.
+
+        ARGS
+        ----
+        xvals   : deque, most recent timestamps
+        yvals   : deque, most recent sensor values
+        pstamps : deque, most recent pollstamps, indicating freq of polling
+        '''
         if self.plotbox.isChecked():
             # self.curve.setData((np.array(xvals)-t0),yvals)
             self.curve.setData(xvals,yvals)
@@ -155,10 +177,12 @@ class myWindow(pg.QtGui.QWidget):
                 1./np.mean(np.diff(pstamps)),
                 1./np.mean(np.diff(xvals))))
         # app.processEvents() # force complete redraw for every plot
-        # look4signal(self.myThread.data)
 
-    # override the default window shutdown behavior
+
     def closeEvent(self,event):
+        '''Overrides default window shutdown
+        behavior by asking for confirmation.
+        '''
         quit_msg = 'Are you sure you want to exit?'
         reply = pg.QtGui.QMessageBox.question(self,'Message',quit_msg,
                     pg.QtGui.QMessageBox.Yes,pg.QtGui.QMessageBox.No)
