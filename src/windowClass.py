@@ -7,15 +7,6 @@ import numpy as np
 import pyqtgraph as pg
 
 
-LOG_FNAME = './data.log'
-
-# set up logging
-logging.basicConfig(filename=LOG_FNAME,
-                    filemode='w',
-                    level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
-
-
 ts2str = lambda ts: datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S')
 class TimeAxisItem(pg.AxisItem):
     '''subclass to get timestamps on x axis
@@ -29,8 +20,14 @@ class TimeAxisItem(pg.AxisItem):
 
 class myWindow(pg.QtGui.QWidget):
     '''Main window display.'''
-    def __init__(self,ymax):
+    def __init__(self,ymax,log_fname='./data.log'):
         super(self.__class__,self).__init__()
+
+        # set up logging
+        logging.basicConfig(filename=log_fname,
+                            filemode='w',
+                            level=logging.INFO,
+                            format='%(asctime)s - %(levelname)s - %(message)s')
 
         self.ymax = ymax
         self.initUI()

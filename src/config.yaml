@@ -1,0 +1,20 @@
+# i/o
+serial_name: /dev/cu.usbmodem53254001 #/dev/cu.usbmodem52417201
+data_fname: ./data.csv
+log_fname: ./data.log
+columns: # of the output file
+  - stamp
+  - data
+
+# for conversion of input to volts
+max_analog_volts: 3.3
+analog_read_resolution: 13 # unique to teensy
+
+# flick detection
+internal_sampling_rate: 100 # Hz
+moving_average_time: 1.0 # secs
+psd_calc_window_time: 0.1 # secs
+target_freq_index: 1 # the second lowest frequency recorded
+detection_threshold_up: 0.6
+detection_threshold_down: 0.4
+buffer_len: 1000 # n data points to keep in buffer

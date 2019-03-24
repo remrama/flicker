@@ -9,15 +9,6 @@ from copy import copy
 from myDetector import myDetector
 
 
-SERIAL_NAME = '/dev/cu.usbmodem53254001' #'/dev/cu.usbmodem52417201'
-BUFFER_LEN = 1000 # n data points kept in buffer
-DATA_FNAME = './data.csv'
-COLUMNS = ['stamp','data'] # of the output file
-
-# for conversion of input to volts
-MAX_ANALOG_VOLTS = 3.3
-ANALOG_READ_RESOLUTION = 13 # unique to teensy
-raw2volts = lambda x: MAX_ANALOG_VOLTS * x / float(2**ANALOG_READ_RESOLUTION)
 
 
 class myWorker(pg.QtCore.QObject):
@@ -33,44 +24,65 @@ class myWorker(pg.QtCore.QObject):
     signal4log = pg.QtCore.pyqtSignal(str,bool,float)
 
 
-    def __init__(self,name=SERIAL_NAME,
-                      buffer_len=BUFFER_LEN,
-                      saving=False,
-                      fname=DATA_FNAME,
-                      columns=COLUMNS):
+    def __init__(self,serial_name='/dev/cu.usbmodem53254001',
+                      buffer_len=1000,
+                      fname='./data.csv',
+                      columns=['stamp','data'],
+                      max_analog_volts=3.3,
+                      analog_read_resolution=13,
+                      internal_sampling_rate=100,   # passed to detector
+                      moving_average_time=1.0,      # passed to detector
+                      psd_calc_window_time=0.1,     # passed to detector
+                      target_freq_index=1,          # passed to detector
+                      detection_threshold_up=0.6,   # passed to detector
+                      detection_threshold_down=0.4, # passed to detector
+                      saving=False):
 
         super(self.__class__,self).__init__()
 
 
-        self.name = SERIAL_NAME
-        self.buffer_len = buffer_len
-        self.saving = saving
-        self.fname = fname
-        self.columns = columns
+        self.NAME = serial_name
+        self.BUFFER_LEN = buffer_len
+        self.SAVING = saving
+        self.FNAME = fname
+        self.COLUMNS = columns
+        self.MAX_ANALOG_VOLTS = max_analog_volts
+        self.ANALOG_READ_RESOLUTION = analog_read_resolution
+
 
         # connect to serial
         try: # try to intialize connection with duino
             ## TODO: add timeout and baudrate args
-            self.duino = serial.Serial(name)
+            self.duino = serial.Serial(self.NAME)
         except serial.serialutil.SerialException:
             self.duino = None
 
         # initialize empty lists for holding data/time buffers
-        self.data = deque(maxlen=self.buffer_len)
-        self.stamps = deque(maxlen=self.buffer_len)
-        self.pollstamps = deque(maxlen=self.buffer_len)
+        self.data = deque(maxlen=self.BUFFER_LEN)
+        self.stamps = deque(maxlen=self.BUFFER_LEN)
+        self.pollstamps = deque(maxlen=self.BUFFER_LEN)
         ## TEMP just hvae pollstamps for testing
         ## to distinguish poll vs data incoming frequency
 
         # initialize detector
-        self.detector = myDetector()
+        self.detector = myDetector(internal_sampling_rate,
+                                   moving_average_time,
+                                   psd_calc_window_time,
+                                   target_freq_index,
+                                   detection_threshold_up,
+                                   detection_threshold_down)
 
         self._startNewFile()
 
+
+    def _raw2volts(self,x):
+        '''for conversion of sensor output to volts'''
+        return self.MAX_ANALOG_VOLTS * x / float(2**self.ANALOG_READ_RESOLUTION)
+
     def _startNewFile(self):
         '''initializes file with column names only'''
-        with open(self.fname,'w') as newfile:
-            newfile.write(','.join(self.columns))
+        with open(self.FNAME,'w') as newfile:
+            newfile.write(','.join(self.COLUMNS))
 
     def _saverow(self,rowlist):
         '''Appends existing file.
@@ -78,7 +90,7 @@ class myWorker(pg.QtCore.QObject):
         ----
         rowlist : 1 value for each column
         '''
-        with open(self.fname,'a') as outfile:
+        with open(self.FNAME,'a') as outfile:
             outfile.write('\n'+','.join([ str(x) for x in rowlist ]))
 
 
@@ -141,13 +153,13 @@ class myWorker(pg.QtCore.QObject):
         ## TODO: currently this only includes the last
         ## _if_ multiple values come thru serial at once
         if len(vals) > 0:
-            v = raw2volts(vals[-1])
+            v = self._raw2volts(vals[-1])
             # update data buffer
             self.data.append(v)
             self.stamps.append(stamp)
             self.pollstamps.append(stamp)
             # save
-            if self.saving:
+            if self.SAVING:
                 self._saverow(rowlist=[stamp,v])
         else:
             # log_and_display('Serial poll came back empty')
@@ -157,7 +169,7 @@ class myWorker(pg.QtCore.QObject):
         
         # check for saccade
         # skip beginning of stream and soon after a found signal
-        if (len(self.data) >= self.buffer_len):
+        if (len(self.data) >= self.BUFFER_LEN):
 
             self.check()
 
