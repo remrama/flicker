@@ -1,8 +1,10 @@
 .DS_Store
 *.pyc
 
+design/
 docs/
 figures/
+images/
 lit/
 posters/
 slides/
