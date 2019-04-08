@@ -11,7 +11,7 @@ AudioConnection        patchCord1(playWav,0,audioOutput,0);
 
 
 // variables
-int SENS_PIN = A15; // sensor pin number
+int SENS_PIN = A14; // sensor pin number
 int BULB_PIN = 33;
 // int ANALOG_READ_RESOLUTION = 13; // 13 bit analog to digital on teensy
 

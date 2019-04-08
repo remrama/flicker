@@ -1,5 +1,6 @@
 # i/o
-serial_name: /dev/cu.usbmodem53254001 #/dev/cu.usbmodem52417201
+# serial_name: /dev/cu.usbmodem53254001
+serial_name: /dev/cu.usbmodem52417201
 data_fname: ./data.csv
 log_fname: ./data.log
 columns: # of the output file
