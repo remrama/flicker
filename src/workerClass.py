@@ -6,7 +6,7 @@ import numpy as np
 import pyqtgraph as pg
 from copy import copy
 
-from myDetector import myDetector
+from detectorClass import myDetector
 
 
 
@@ -26,7 +26,7 @@ class myWorker(pg.QtCore.QObject):
 
     def __init__(self,serial_name='/dev/cu.usbmodem53254001',
                       buffer_len=1000,
-                      fname='./data.csv',
+                      fname='../data/temp.csv',
                       columns=['stamp','data'],
                       max_analog_volts=3.3,
                       analog_read_resolution=13,

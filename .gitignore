@@ -1,6 +1,7 @@
 .DS_Store
 *.pyc
 
+data/
 design/
 docs/
 figures/
@@ -8,5 +9,7 @@ images/
 lit/
 posters/
 slides/
-stimuli/
+stims/
 SCRATCH.md
+
+src/archive/
