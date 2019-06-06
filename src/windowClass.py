@@ -6,6 +6,8 @@ from collections import deque
 import numpy as np
 import pyqtgraph as pg
 
+from PSDPlotWidget import PSDPlotWidget
+
 
 ts2str = lambda ts: datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S')
 class TimeAxisItem(pg.AxisItem):
@@ -29,6 +31,8 @@ class myWindow(pg.QtGui.QWidget):
                             level=logging.INFO,
                             format='%(asctime)s - %(levelname)s - %(message)s')
 
+        self.psdplotwin = PSDPlotWidget()
+
         self.ymax = ymax
         self.initUI()
 
@@ -42,16 +46,16 @@ class myWindow(pg.QtGui.QWidget):
         self.detectbox = pg.QtGui.QCheckBox('Listen for flicks')
         self.plotbox.setChecked(True) # default plot on
         self.detectbox.setChecked(True) # default detection on
-        self.recbutton = pg.QtGui.QPushButton('Play audio')
-        self.recbutton.setCheckable(True)
-        self.recbutton.clicked.connect(self.handleRcBtn)
+        self.psdplotbutton = pg.QtGui.QPushButton('PSD plot')
+        # self.psdplotbutton.setCheckable(True)
+        self.psdplotbutton.clicked.connect(self.handlePSDbutton)
 
         # manage the location/size of widgets
         grid = pg.QtGui.QGridLayout()
         grid.addWidget(self.savebox,0,0)
         grid.addWidget(self.plotbox,1,0)
         grid.addWidget(self.detectbox,2,0)
-        grid.addWidget(self.recbutton,3,0)
+        grid.addWidget(self.psdplotbutton,3,0)
         grid.addWidget(self.listw,4,0)
         grid.addWidget(self.plotw,0,1,5,1)
         self.setLayout(grid)
@@ -93,31 +97,9 @@ class myWindow(pg.QtGui.QWidget):
         # msg = '{button} {action}'.format(button=btn_txt,action=act_txt)
         # log_and_display(self,msg)
 
-    def handleRcBtn(self):
-        '''For recording. Plays audio (words left/right)
-        and logs timestamps, for syncing with data files.
-        Once pressed, should play a series of sounds 
-        separated by a few seconds.
-        '''
-        BETWEEN_SOUNDS = 8 # seconds
-        N_SOUNDS = 5 # randomize each sound
-        if not self.sender().isChecked():
-            ## TODO: any way to cancel/exit thread??
-            pass
-        else:
-            def play_sequence():
-                for i in range(N_SOUNDS):
-                    snd = sounds['left']
-                    sd.play(snd,samplerate=44100)
-                    log_and_display(self,"Played 'left'")
-                    time.sleep(BETWEEN_SOUNDS)
-                log_and_display(self,'Stopped audio')
-                if self.recbutton.isChecked():
-                    self.recbutton.click()
-            self.t = threading.Thread(target=play_sequence)
-            self.t.start()
-            log_and_display(self,'Started audio')
-
+    def handlePSDbutton(self):
+        self.psdplotwin.show()
+        
 
     @pg.QtCore.pyqtSlot(str,bool,float) # maybe not necessary
     def updateLog(self,msg,warning,xval):

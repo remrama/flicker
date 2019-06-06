@@ -31,7 +31,7 @@ class myDetector(object):
         volts_in_history = volts_in_history[::-1] # I think this needs to be reversed as done here? depends on input order
         resampled_time = np.arange(0, self.PSD_CALC_WINDOW_TIME, 1/self.INTERNAL_SAMPLING_RATE)
         assert len(resampled_time) == self.PSD_WINDOW_FRAMES # must be same for filtering to work
-        resampled_volts_history = np.interp(resampled_time, time_history, volts_in_history)
+        resampled_volts_history = 1e6*np.interp(resampled_time, time_history, volts_in_history)
         [sampled_freqs, signal_psd] = welch(resampled_volts_history, fs=self.INTERNAL_SAMPLING_RATE, window='boxcar', nperseg=self.PSD_WINDOW_FRAMES) #, noverlap=0)
         softmax_signal_psd = softmax(signal_psd)
         target_signal_psd = softmax_signal_psd[self.TARGET_FREQ_INDEX]
@@ -48,7 +48,7 @@ class myDetector(object):
         elif self.status == 'falling':
             self.status = 'idle'
 
-        return self.status
+        return self.status, softmax_signal_psd
 
 def softmax(x):
     """Compute softmax values for each sets of scores in x."""

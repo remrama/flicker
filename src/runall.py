@@ -35,6 +35,7 @@ if __name__ == '__main__':
                       PARAMS['detection_threshold_down'])
     worker.signal4plot.connect(window.updatePlot)
     worker.signal4log.connect(window.updateLog)
+    # worker.signal4psdplot.connect(window.psdplotwin.updatePlot)
     worker.moveToThread(thread)
     thread.started.connect(worker.keepGrabbingData)
 

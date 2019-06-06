@@ -22,7 +22,8 @@ class myWorker(pg.QtCore.QObject):
     signal4plot = pg.QtCore.pyqtSignal(deque,deque,deque)
     # signal gets sent to event list if signal detected
     signal4log = pg.QtCore.pyqtSignal(str,bool,float)
-
+    # signal goes to psdplotter for visualization only
+    signal4psdplot = pg.QtCore.pyqtSignal(list)
 
     def __init__(self,serial_name='/dev/cu.usbmodem53254001',
                       buffer_len=1000,
@@ -94,14 +95,17 @@ class myWorker(pg.QtCore.QObject):
             outfile.write('\n'+','.join([ str(x) for x in rowlist ]))
 
 
-    def check(self):
+    def check4flick(self):
         '''Look for signal in data passed in.
         '''
         # # grab a subset of data buffer
         # data2search = list(islice(reversed(self.data),0,self.buffer_len)) # ugly slice bc of deque
         # data2search = self.data # WHOLE THING
-        status = self.detector.update_status(list(self.data),list(self.stamps))
+        status, psdvals = self.detector.update_status(list(self.data),list(self.stamps))
         
+        # send psd to plot widget, even if not currently open
+        self.signal4psdplot.emit(list(psdvals))
+
         # handle flick
         if status == 'rising':
             # log_and_display(win,'Flick detected')
@@ -171,7 +175,7 @@ class myWorker(pg.QtCore.QObject):
         # skip beginning of stream and soon after a found signal
         if (len(self.data) >= self.BUFFER_LEN):
 
-            self.check()
+            self.check4flick()
 
         ## TEMP: better route than making copies?
         ## issue was that plot would fail early,
