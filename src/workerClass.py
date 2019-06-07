@@ -65,6 +65,8 @@ class myWorker(pg.QtCore.QObject):
         ## TEMP just hvae pollstamps for testing
         ## to distinguish poll vs data incoming frequency
 
+        self.gain = 1 # start here, modulated from window slider
+
         # initialize detector
         self.detector = myDetector(internal_sampling_rate,
                                    moving_average_time,
@@ -94,6 +96,10 @@ class myWorker(pg.QtCore.QObject):
         with open(self.FNAME,'a') as outfile:
             outfile.write('\n'+','.join([ str(x) for x in rowlist ]))
 
+    # @pg.QtCore.pyqtSlot(int) # maybe not necessary
+    def update_gain(self,new_gain):
+        self.gain = new_gain
+        print(self.gain)
 
     def check4flick(self):
         '''Look for signal in data passed in.
@@ -101,7 +107,7 @@ class myWorker(pg.QtCore.QObject):
         # # grab a subset of data buffer
         # data2search = list(islice(reversed(self.data),0,self.buffer_len)) # ugly slice bc of deque
         # data2search = self.data # WHOLE THING
-        status, psdvals = self.detector.update_status(list(self.data),list(self.stamps))
+        status, psdvals = self.detector.update_status(list(self.data),list(self.stamps),self.gain)
         
         # send psd to plot widget, even if not currently open
         self.signal4psdplot.emit(list(psdvals))

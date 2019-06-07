@@ -22,6 +22,10 @@ class TimeAxisItem(pg.AxisItem):
 
 class myWindow(pg.QtGui.QWidget):
     '''Main window display.'''
+
+
+    signal_gain4worker = pg.QtCore.pyqtSignal(int)
+
     def __init__(self,ymax,log_fname='./data.log'):
         super(self.__class__,self).__init__()
 
@@ -50,14 +54,26 @@ class myWindow(pg.QtGui.QWidget):
         # self.psdplotbutton.setCheckable(True)
         self.psdplotbutton.clicked.connect(self.handlePSDbutton)
 
+        # gain slider
+        self.gainSlider = pg.QtGui.QSlider(pg.QtCore.Qt.Horizontal)
+        self.gainSlider.setRange(0,10000)
+        self.gainSlider.setValue(0)
+        self.gainSlider.setTickPosition(pg.QtGui.QSlider.TicksBelow)
+        self.gainSlider.setTickInterval(10)
+        self.gainSlider.setSingleStep(10)
+        self.gainSlider.valueChanged.connect(self.handle_gainSlider)
+        # Label = QtWidgets.QLabel(qstr)
+
+
         # manage the location/size of widgets
         grid = pg.QtGui.QGridLayout()
         grid.addWidget(self.savebox,0,0)
         grid.addWidget(self.plotbox,1,0)
         grid.addWidget(self.detectbox,2,0)
         grid.addWidget(self.psdplotbutton,3,0)
-        grid.addWidget(self.listw,4,0)
-        grid.addWidget(self.plotw,0,1,5,1)
+        grid.addWidget(self.gainSlider,4,0)
+        grid.addWidget(self.listw,5,0)
+        grid.addWidget(self.plotw,0,1,6,1)
         self.setLayout(grid)
 
         # aesthetics
@@ -100,6 +116,10 @@ class myWindow(pg.QtGui.QWidget):
     def handlePSDbutton(self):
         self.psdplotwin.show()
         
+    def handle_gainSlider(self):
+        new_gain = self.gainSlider.value()
+        self.signal_gain4worker.emit(new_gain)
+
 
     @pg.QtCore.pyqtSlot(str,bool,float) # maybe not necessary
     def updateLog(self,msg,warning,xval):

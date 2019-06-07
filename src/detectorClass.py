@@ -24,14 +24,14 @@ class myDetector(object):
         self.DETECTION_THRESHOLD_UP = detection_threshold_up  # arbitrary (>D_T_D)
         self.DETECTION_THRESHOLD_DOWN = detection_threshold_down # arbitrary (<=D_T_U)
 
-    def update_status(self, volts_in_history, unix_timestamps):
+    def update_status(self, volts_in_history, unix_timestamps, gain):
         assert np.shape(volts_in_history) == np.shape(unix_timestamps) # should be same length
         # time_history = np.cumsum(np.diff(unix_timestamps)) # convert unixtime to current time
         time_history = np.array(unix_timestamps) - unix_timestamps[0] # convert unixtime to current time
         volts_in_history = volts_in_history[::-1] # I think this needs to be reversed as done here? depends on input order
         resampled_time = np.arange(0, self.PSD_CALC_WINDOW_TIME, 1/self.INTERNAL_SAMPLING_RATE)
         assert len(resampled_time) == self.PSD_WINDOW_FRAMES # must be same for filtering to work
-        resampled_volts_history = 1e6*np.interp(resampled_time, time_history, volts_in_history)
+        resampled_volts_history = gain*np.interp(resampled_time, time_history, volts_in_history)
         [sampled_freqs, signal_psd] = welch(resampled_volts_history, fs=self.INTERNAL_SAMPLING_RATE, window='boxcar', nperseg=self.PSD_WINDOW_FRAMES) #, noverlap=0)
         softmax_signal_psd = softmax(signal_psd)
         target_signal_psd = softmax_signal_psd[self.TARGET_FREQ_INDEX]
