@@ -198,12 +198,16 @@ class myWorker(pg.QtCore.QObject):
             time_passed = self.stamps[-1]-self.stamps[-2]
         else:
             time_passed = None
-        high_freq_noise = np.random.normal(self.baseline_voltage,self.high_freq_noise_var)
+        high_freq_noise = np.random.normal(0,self.high_freq_noise_var)
         med_freq_noise = self.med_freq_noise(np.random.normal(0,self.med_freq_noise_var),time_passed)
         low_freq_noise = self.low_freq_noise(np.random.normal(0,self.low_freq_noise_var),time_passed)
         signal = 0
-        noise = high_freq_noise+med_freq_noise+low_freq_noise
+        noise = self.baseline_voltage+high_freq_noise+med_freq_noise+low_freq_noise
         return signal+noise
+
+    def triggerSignal(self):
+        self.signals.append({'duration':duration,
+                             'magnitude':magnitude})
 
     def initializeSimulation(self):
         self.baseline_voltage = 0.07
@@ -212,9 +216,13 @@ class myWorker(pg.QtCore.QObject):
         self.low_freq_noise_var = 0.1
         self.med_freq_noise_cutoff = 0.4 # Hz
         self.low_freq_noise_cutoff = 0.03 # Hz
-
         self.med_freq_noise = LowPassFilter(cutoff=self.med_freq_noise_cutoff)
         self.low_freq_noise = LowPassFilter(cutoff=self.low_freq_noise_cutoff)
+
+        self.signals = []
+        self.signal_duration_range = [0.06, 0.18] # seconds
+        self.signal_magnitude_range = [0.01, 0.02] # volts
+        self.
 
 
 class LowPassFilter(object):
