@@ -225,6 +225,14 @@ class myWorker(pg.QtCore.QObject):
         self.
 
 
+    def generateSignal(self,generate):
+        '''Hackey but <generate> is a bool that will be sent
+        as True to start this function
+        '''
+        if generate:
+            print 'I am generating a signal...'
+
+
 class LowPassFilter(object):
 
     def __init__(self, cutoff, freq=100):
