@@ -37,6 +37,8 @@ class myWorker(pg.QtCore.QObject):
                       target_freq_index=1,          # passed to detector
                       detection_threshold_up=0.6,   # passed to detector
                       detection_threshold_down=0.4, # passed to detector
+                      lrlr_timerange=4,
+                      n_flicks=4,
                       saving=False):
 
         super(self.__class__,self).__init__()
@@ -49,6 +51,8 @@ class myWorker(pg.QtCore.QObject):
         self.COLUMNS = columns
         self.MAX_ANALOG_VOLTS = max_analog_volts
         self.ANALOG_READ_RESOLUTION = analog_read_resolution
+        self.LRLR_TIMERANGE = lrlr_timerange
+        self.N_FLICKS = n_flicks
 
 
         # connect to serial
@@ -65,6 +69,10 @@ class myWorker(pg.QtCore.QObject):
         self.pollstamps = deque(maxlen=self.BUFFER_LEN)
         ## TEMP just hvae pollstamps for testing
         ## to distinguish poll vs data incoming frequency
+
+        # empty deque to hold detected flicks,
+        # to help detect 4 consecutive flicks (1 LRLR)
+        self.lrlr = deque(maxlen=4)
 
         self.gain = 1 # start here, modulated from window slider
 
@@ -117,17 +125,27 @@ class myWorker(pg.QtCore.QObject):
 
         # handle flick
         if status == 'rising':
+            print 'rising'
             # log_and_display(win,'Flick detected')
             # send to duino
             # win.myThread.msleep(100)
             # duino.write(bytes(1))
             # time.sleep(1)
 
-            # send to duino
+            # add the most recent timestamp
+            # indicating the time of detection
+            self.lrlr.append(self.stamps[-1])
+            # check if the timepassed between all 4 is within range
+            if len(self.lrlr)==self.N_FLICKS \
+            and self.lrlr[-1]-self.lrlr[0] < self.LRLR_TIMERANGE:
+                # send message to display, with most recent x value for plotting
+                self.signal4log.emit('Flick detected',False,self.stamps[-1])
+                # clear the flick record
+                self.lrlr.clear()
+
+            # send to duino ## WHYY??
             if self.duino is not None:
                 self.duino.write(bytes(1))
-            # send message to display, with most recent x value for plotting
-            self.signal4log.emit('Flick detected',False,self.stamps[-1])
 
         # elif self.duino is None:
         #     # give a random simulate flick signal

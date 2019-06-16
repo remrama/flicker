@@ -32,7 +32,9 @@ if __name__ == '__main__':
                       PARAMS['psd_calc_window_time'],
                       PARAMS['target_freq_index'],
                       PARAMS['detection_threshold_up'],
-                      PARAMS['detection_threshold_down'])
+                      PARAMS['detection_threshold_down'],
+                      PARAMS['lrlr_timerange'],
+                      PARAMS['n_flicks'])
     worker.signal4plot.connect(window.updatePlot)
     worker.signal4log.connect(window.updateLog)
     window.signal_gain4worker.connect(worker.update_gain)

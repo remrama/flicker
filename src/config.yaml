@@ -19,3 +19,5 @@ target_freq_index: 1 # the second lowest frequency recorded
 detection_threshold_up: 0.6
 detection_threshold_down: 0.4
 buffer_len: 1000 # n data points to keep in buffer
+lrlr_timerange: 2 # secs that n_flicks must occur within
+n_flicks: 4 # n flicks that must occur within lrlr_timerange for detection 
