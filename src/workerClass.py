@@ -103,7 +103,6 @@ class myWorker(pg.QtCore.QObject):
     # @pg.QtCore.pyqtSlot(int) # maybe not necessary
     def update_gain(self,new_gain):
         self.gain = new_gain
-        print(self.gain)
 
     def check4flick(self):
         '''Look for signal in data passed in.
@@ -201,13 +200,23 @@ class myWorker(pg.QtCore.QObject):
         high_freq_noise = np.random.normal(0,self.high_freq_noise_var)
         med_freq_noise = self.med_freq_noise(np.random.normal(0,self.med_freq_noise_var),time_passed)
         low_freq_noise = self.low_freq_noise(np.random.normal(0,self.low_freq_noise_var),time_passed)
-        signal = 0
+        signal = self.get_total_signal()
         noise = self.baseline_voltage+high_freq_noise+med_freq_noise+low_freq_noise
         return signal+noise
 
-    def triggerSignal(self):
-        self.signals.append({'duration':duration,
-                             'magnitude':magnitude})
+    def get_total_signal(self):
+        total_signal = 0
+        for signal in self.signals:
+            total_signal += self.get_sinusoid_signal(signal)
+            if self.stamps[-1]-signal['start_time']>=signal['duration']:
+                self.signals.remove(signal)
+        return total_signal
+
+    def get_sinusoid_signal(self, signal):
+        t    = self.stamps[-1]-signal['start_time']
+        mag  = signal['magnitude']
+        freq = 2*np.pi/float(signal['duration'])
+        return 0.5*mag*(1-np.cos(freq*t))
 
     def initializeSimulation(self):
         self.baseline_voltage = 0.07
@@ -221,17 +230,17 @@ class myWorker(pg.QtCore.QObject):
 
         self.signals = []
         self.signal_duration_range = [0.06, 0.18] # seconds
-        self.signal_magnitude_range = [0.01, 0.02] # volts
-        self.
-
+        self.signal_magnitude_range = [0.03, 0.05] # volts
 
     def generateSignal(self,generate):
         '''Hackey but <generate> is a bool that will be sent
         as True to start this function
         '''
-        if generate:
-            print 'I am generating a signal...'
-
+        duration = np.random.uniform(self.signal_duration_range[0],self.signal_duration_range[1])
+        magnitude = np.random.uniform(self.signal_magnitude_range[0],self.signal_magnitude_range[1])
+        self.signals.append({'duration':duration,
+                             'magnitude':magnitude,
+                             'start_time':self.stamps[-1]})
 
 class LowPassFilter(object):
 

@@ -13,7 +13,7 @@ analog_read_resolution: 13 # unique to teensy
 
 # flick detection
 internal_sampling_rate: 100 # Hz
-moving_average_time: 1.0 # secs
+moving_average_time: 0.05 # secs
 psd_calc_window_time: 0.1 # secs
 target_freq_index: 1 # the second lowest frequency recorded
 detection_threshold_up: 0.6
