@@ -57,6 +57,7 @@ class myWorker(pg.QtCore.QObject):
             self.duino = serial.Serial(self.NAME)
         except serial.serialutil.SerialException:
             self.duino = None
+            self.initializeSimulation()
 
         # initialize empty lists for holding data/time buffers
         self.data = deque(maxlen=self.BUFFER_LEN)
@@ -81,6 +82,9 @@ class myWorker(pg.QtCore.QObject):
     def _raw2volts(self,x):
         '''for conversion of sensor output to volts'''
         return self.MAX_ANALOG_VOLTS * x / float(2**self.ANALOG_READ_RESOLUTION)
+
+    def _volts2raw(self,x):
+        return x * 2**self.ANALOG_READ_RESOLUTION / float(self.MAX_ANALOG_VOLTS)
 
     def _startNewFile(self):
         '''initializes file with column names only'''
@@ -126,10 +130,10 @@ class myWorker(pg.QtCore.QObject):
             # send message to display, with most recent x value for plotting
             self.signal4log.emit('Flick detected',False,self.stamps[-1])
 
-        elif self.duino is None:
-            # give a random simulate flick signal
-            if np.random.uniform() > .99:
-                self.signal4log.emit('Flick detected',False,self.stamps[-1])
+        # elif self.duino is None:
+        #     # give a random simulate flick signal
+        #     if np.random.uniform() > .99:
+        #         self.signal4log.emit('Flick detected',False,self.stamps[-1])
 
 
     def keepGrabbingData(self):
@@ -157,7 +161,7 @@ class myWorker(pg.QtCore.QObject):
             vals = [ float(x) for x in sep if x.isalnum() ]
         except AttributeError: # since duino is None-type if no duino
             # simulate serial
-            vals = [np.random.normal(500,100)] # as list to match receive_serial output
+            vals = [self._volts2raw(self.generateSimulatedData())] # as list to match receive_serial output
         stamp = serial.time.time()
 
         ## TODO: currently this only includes the last
@@ -188,3 +192,58 @@ class myWorker(pg.QtCore.QObject):
         ## i think bc "views" were being passed and deques would change
         ## ie, after x was plotted, y would have a new value appended.
         ## Could also init deques with 1000 zeros. dont like that either.
+
+    def generateSimulatedData(self):
+        if len(self.stamps)>1:
+            time_passed = self.stamps[-1]-self.stamps[-2]
+        else:
+            time_passed = None
+        high_freq_noise = np.random.normal(self.baseline_voltage,self.high_freq_noise_var)
+        med_freq_noise = self.med_freq_noise(np.random.normal(0,self.med_freq_noise_var),time_passed)
+        low_freq_noise = self.low_freq_noise(np.random.normal(0,self.low_freq_noise_var),time_passed)
+        signal = 0
+        noise = high_freq_noise+med_freq_noise+low_freq_noise
+        return signal+noise
+
+    def initializeSimulation(self):
+        self.baseline_voltage = 0.07
+        self.high_freq_noise_var = 0.001
+        self.med_freq_noise_var = 0.05
+        self.low_freq_noise_var = 0.1
+        self.med_freq_noise_cutoff = 0.4 # Hz
+        self.low_freq_noise_cutoff = 0.03 # Hz
+
+        self.med_freq_noise = LowPassFilter(cutoff=self.med_freq_noise_cutoff)
+        self.low_freq_noise = LowPassFilter(cutoff=self.low_freq_noise_cutoff)
+
+
+class LowPassFilter(object):
+
+    def __init__(self, cutoff, freq=100):
+        self.__freq = freq
+        self.__cutoff = cutoff
+        self.__setAlpha()
+        self.__y = self.__s = None
+
+    def __setAlpha(self):
+        te    = 1.0 / self.__freq
+        tau   = 1.0 / (2*np.pi*self.__cutoff)
+        alpha =  1.0 / (1.0 + tau/te)
+        if alpha<=0 or alpha>1.0:
+            raise ValueError("alpha (%s) should be in (0.0, 1.0]"%alpha)
+        self.__alpha = alpha
+
+    def __call__(self, value, time_passed=None):        
+        if time_passed is not None:
+            self.__freq = 1.0 / float(time_passed)
+            self.__setAlpha()
+        if self.__y is None:
+            s = value
+        else:
+            s = self.__alpha*value + (1.0-self.__alpha)*self.__s
+        self.__y = value
+        self.__s = s
+        return s
+
+    def lastValue(self):
+        return self.__y
