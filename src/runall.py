@@ -36,6 +36,7 @@ if __name__ == '__main__':
     worker.signal4plot.connect(window.updatePlot)
     worker.signal4log.connect(window.updateLog)
     window.signal_gain4worker.connect(worker.update_gain)
+    window.signal_to_gensignal.connect(worker.generateSignal)
     # worker.signal4psdplot.connect(window.psdplotwin.updatePlot)
     worker.moveToThread(thread)
     thread.started.connect(worker.keepGrabbingData)

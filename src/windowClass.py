@@ -25,6 +25,7 @@ class myWindow(pg.QtGui.QWidget):
 
 
     signal_gain4worker = pg.QtCore.pyqtSignal(int)
+    signal_to_gensignal = pg.QtCore.pyqtSignal(bool)
 
     def __init__(self,ymax,log_fname='./data.log'):
         super(self.__class__,self).__init__()
@@ -53,6 +54,8 @@ class myWindow(pg.QtGui.QWidget):
         self.psdplotbutton = pg.QtGui.QPushButton('PSD plot')
         # self.psdplotbutton.setCheckable(True)
         self.psdplotbutton.clicked.connect(self.handlePSDbutton)
+        self.gensigButton = pg.QtGui.QPushButton('Generate signal')
+        self.gensigButton.clicked.connect(self.handleGenSigButton)
 
         # gain slider
         self.gainSlider = pg.QtGui.QSlider(pg.QtCore.Qt.Horizontal)
@@ -71,9 +74,10 @@ class myWindow(pg.QtGui.QWidget):
         grid.addWidget(self.plotbox,1,0)
         grid.addWidget(self.detectbox,2,0)
         grid.addWidget(self.psdplotbutton,3,0)
-        grid.addWidget(self.gainSlider,4,0)
-        grid.addWidget(self.listw,5,0)
-        grid.addWidget(self.plotw,0,1,6,1)
+        grid.addWidget(self.gensigButton,4,0)
+        grid.addWidget(self.gainSlider,5,0)
+        grid.addWidget(self.listw,6,0)
+        grid.addWidget(self.plotw,0,1,7,1)
         self.setLayout(grid)
 
         # aesthetics
@@ -119,6 +123,9 @@ class myWindow(pg.QtGui.QWidget):
     def handle_gainSlider(self):
         new_gain = self.gainSlider.value()
         self.signal_gain4worker.emit(new_gain)
+
+    def handleGenSigButton(self):
+        self.signal_to_gensignal.emit(True)
 
 
     @pg.QtCore.pyqtSlot(str,bool,float) # maybe not necessary
