@@ -9,7 +9,6 @@ dependencies:
   - numpy
   - scipy
   - pyqtgraph
-  - conda-forge:python-sounddevice
 
   # for development
   - ipython
