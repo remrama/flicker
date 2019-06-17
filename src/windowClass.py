@@ -61,7 +61,7 @@ class myWindow(pg.QtGui.QWidget):
         self.gainSlider = pg.QtGui.QSlider(pg.QtCore.Qt.Horizontal)
         self.gainSlider.setRange(0,10000)
         self.gainSlider.setValue(0)
-        self.gainSlider.setTickPosition(pg.QtGui.QSlider.TicksBelow)
+        # self.gainSlider.setTickPosition(pg.QtGui.QSlider.TicksBelow)
         self.gainSlider.setTickInterval(10)
         self.gainSlider.setSingleStep(10)
         self.gainSlider.valueChanged.connect(self.handle_gainSlider)
