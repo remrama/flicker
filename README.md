@@ -8,7 +8,7 @@
 ### Summary
 During a lucid dream, the dreamer can control their physical eyes by performing directed eye movements within the dream. We built a device, _flicker_, to be worn during sleep that monitors for intentional horizontal saccades (i.e., [“flicks”](#how-to-flick)). Upon flick detection, the device plays audio back to the dreamer via bone conduction. Bone conduction plays audio by vibrating bones in the skull rather than the conversion of sound waves through the ear, which results in a sensation of audio playing from “inside the head.” Because the audio can be triggered within the dream, a benefit of _flicker_ is that one can perform external sensory stimulation experiments without an experimenter triggering the stimulation. See [usage](#usage).
 
-The **hardware** is primarily a combination of Arduino microcontroller, MyoWare muscle sensor, and Adafruit audio amplifier (see [parts list](#parts-list)). Outside of the Arduino code placed on the Teensy board, all **software** is in Python (see [conda environment file](./environment.yml) for requirements) driven largely by [PyQt](https://riverbankcomputing.com/software/pyqt/intro), [PyQtGraph](http://www.pyqtgraph.org/), and a [custom "flick detection" algorithm](./src/myDetector.py) using the [SciPy stack](https://www.scipy.org/).
+The **hardware** is primarily a combination of Arduino microcontroller, MyoWare muscle sensor, and Adafruit audio amplifier (see [parts list](#parts-list)). Outside of the Arduino code placed on the Teensy board, all **software** is in Python (see [conda environment file](./environment.yml) for requirements) driven largely by [PyQt](https://riverbankcomputing.com/software/pyqt/intro), [PyQtGraph](http://www.pyqtgraph.org/), and a [custom "flick detection" algorithm](./src/detectorClass.py) using the [SciPy stack](https://www.scipy.org/).
 
 <p align=center>
 <img src=./images/device-wear.jpg width=18% align=center />
@@ -36,7 +36,7 @@ But because of the MyoWare sensor's on-board processing, in *flicker*'s case it 
 
 
 ### Parts list
-The circuit board was designed using [Autodesk EAGLE](https://www.autodesk.com/products/eagle/overview) and ordered through [OSH Park](https://oshpark.com/). Design files/specifications are available in the [design](./design/) directory. Custom casings were designed using [Onshape](https://www.onshape.com/) and 3D printed locally. The Onshape files can be found [here](https://cad.onshape.com/documents/ed15d5b42aa4e13c9ebdd001/w/4501215e34b319a0e4282dd3/e/3c54a8b35b51b044f4f24a5f). The USB isolator case design was pulled from [cyrusdreams](https://www.thingiverse.com/thing:1592996) on [Thingiverse](https://www.thingiverse.com/).
+The circuit board was designed using [Autodesk EAGLE](https://www.autodesk.com/products/eagle/overview) and ordered through [OSH Park](https://oshpark.com/). Design files/specifications are available in the [design](./design/) directory. Custom casings for the [controller](https://cad.onshape.com/documents/ed15d5b42aa4e13c9ebdd001/w/4501215e34b319a0e4282dd3/e/fc6b625667ca0f5b9852f31f) and [sensor](https://cad.onshape.com/documents/ed15d5b42aa4e13c9ebdd001/w/4501215e34b319a0e4282dd3/e/f00a7b5da7534cec24908e40) were designed using [Onshape](https://www.onshape.com/) and 3D printed locally. The USB isolator case design was pulled from [cyrusdreams](https://www.thingiverse.com/thing:1592996) on [Thingiverse](https://www.thingiverse.com/).
 
 | part | description | price |
 | ---- | ----------- | ----: |
