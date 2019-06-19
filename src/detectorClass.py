@@ -1,19 +1,46 @@
+"""
+See class docs.
+"""
 import numpy as np
 from scipy.signal import welch
 
+
 class myDetector(object):
-    def __init__(self, internal_sampling_rate_hz, # in Hz
-            moving_average_secs, # in sec
-            psd_calc_window_secs, # in sec
-            target_freq_index, # the second lowest frequency recorded
-            detection_threshold_up,
-            detection_threshold_down):
+    """
+    Detects a LRLR signal.
+
+    Initialized as an attribute attached to myWorker,
+    and gets fed data as it comes in from the Arduino.
+    
+    Keeps a single state as either idle/rising/ongoing/falling.
+    This only looks for single peaks (i.e., flicks), and 
+    <myWorker> keeps a record of the <n_peaks_for_flick_detection>
+    most recent flicks and checks if they are within the range
+    of <lrlr_window_secs>. If so, LRLR detection is logged.
+
+    ARGS
+    ----
+    internal_sampling_rate_hz : Arduino sampling rate
+    moving_average_secs       : data is smoothed over this length
+    psd_calc_window_secs      : length of data for power density extraction
+    target_freq_index         : frequency of interest in PSD (the 2nd lowest frequency recorded)
+                                **this is literally the [0,1,...,N] index of frequency band
+                                **should be changed**
+    detection_threshold_up    : proportion of PSD required to be target_freq_index to initiate "rising" state
+    detection_threshold_down  : proportion of PSD required to be target_freq_index to initiate "falling" state
+    """
+    def __init__(self,internal_sampling_rate_hz,
+                      moving_average_secs,
+                      psd_calc_window_secs,
+                      target_freq_index, # the second lowest frequency recorded
+                      detection_threshold_up,
+                      detection_threshold_down):
         # load and interpret constants
         self.INTERNAL_SAMPLING_RATE_HZ = float(internal_sampling_rate_hz)
         self.MOVING_AVERAGE_FRAMES = int(moving_average_secs*self.INTERNAL_SAMPLING_RATE_HZ)
         self.PSD_CALC_WINDOW_SECS = float(psd_calc_window_secs)
         self.PSD_WINDOW_FRAMES = int(self.INTERNAL_SAMPLING_RATE_HZ*self.PSD_CALC_WINDOW_SECS)
-        self.TARGET_FREQ_INDEX = int(target_freq_index) # literally the [0,1,...,N] index of frequency band, should be changed
+        self.TARGET_FREQ_INDEX = int(target_freq_index)
 
         # state
         self.status = 'idle' # 'rising', 'ongoing', 'falling', 'idle'

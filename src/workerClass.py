@@ -1,12 +1,14 @@
 """
-See class docs
+See class docs.
 """
 import serial
 import numpy as np
 import pyqtgraph as pg
 from copy import copy
 from collections import deque
+
 from detectorClass import myDetector
+
 
 class myWorker(pg.QtCore.QObject):
     """
