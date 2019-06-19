@@ -5,7 +5,6 @@ name: flicker
 dependencies:
   - python=2.7
   - pyserial
-  - pyyaml
   - numpy
   - scipy
   - pyqtgraph

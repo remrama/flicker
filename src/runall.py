@@ -13,7 +13,7 @@ Threading is performed using PyQT QThreads.
     and is opened as an attribute on the workerClass.
 """
 import sys
-import yaml
+import json
 import pyqtgraph as pg
 
 from windowClass import myWindow
@@ -24,8 +24,8 @@ from detectorClass import myDetector
 if __name__ == '__main__':
 
     # load parameters from configuration file
-    with open('config.yaml') as f:
-        PARAMS = yaml.load(f,Loader=yaml.FullLoader)
+    with open('config.json') as f:
+        PARAMS = json.load(f)
 
     # initialize the PyQT app
     app = pg.QtGui.QApplication([])

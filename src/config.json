@@ -1,0 +1,18 @@
+{
+    "serial_name": "/dev/cu.usbmodem53254001",
+    "data_fname": "../data/data.csv",
+    "log_fname": "../data/data.log",
+
+    "max_analog_volts": 3.3,
+    "analog_read_resolution": 13,
+
+    "internal_sampling_rate_hz": 100,
+    "moving_average_secs": 0.05,
+    "psd_calc_window_secs": 0.1,
+    "target_freq_index": 1,
+    "detection_threshold_up": 0.6,
+    "detection_threshold_down": 0.4,
+    "data_buffer_len": 1000,
+    "lrlr_window_secs": 2,
+    "n_peaks_for_flick_detection": 4
+}
