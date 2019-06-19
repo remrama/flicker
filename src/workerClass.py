@@ -12,7 +12,8 @@ from detectorClass import myDetector
 
 class myWorker(pg.QtCore.QObject):
     """
-    Collects data from Arduino.
+    Collects data from Arduino, or simulates data
+    if no Arduino is found during initialization.
     Operates on its own thread (see runall.py).
 
     Data is saved directly from this QObject,
@@ -34,6 +35,7 @@ class myWorker(pg.QtCore.QObject):
     # data for <myWindow> to plot (volts,stamps,pollstamps)
     signal4plot = pg.QtCore.pyqtSignal(deque,deque,deque)
     # message for <myWindow> to display and save to log file
+    # (there's only an occasional need for this)
     signal4log = pg.QtCore.pyqtSignal(str,bool,float)
     # data for PSD visualization
     signal4psdplot = pg.QtCore.pyqtSignal(list)
