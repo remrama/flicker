@@ -38,19 +38,19 @@ if __name__ == '__main__':
     thread = pg.QtCore.QThread()
     # create the <worker> QObject for data collection
     worker = myWorker(PARAMS['serial_name'],
-                      PARAMS['buffer_len'],
-                      PARAMS['data_fname'],
-                      PARAMS['columns'],
+                      PARAMS['data_buffer_len'],
                       PARAMS['max_analog_volts'],
                       PARAMS['analog_read_resolution'],
-                      PARAMS['internal_sampling_rate'],
-                      PARAMS['moving_average_time'],
-                      PARAMS['psd_calc_window_time'],
+                      PARAMS['internal_sampling_rate_hz'],
+                      PARAMS['moving_average_secs'],
+                      PARAMS['psd_calc_window_secs'],
                       PARAMS['target_freq_index'],
                       PARAMS['detection_threshold_up'],
                       PARAMS['detection_threshold_down'],
-                      PARAMS['lrlr_timerange'],
-                      PARAMS['n_flicks'])
+                      PARAMS['lrlr_window_secs'],
+                      PARAMS['n_peaks_for_flick_detection'],
+                      PARAMS['data_fname'],
+                      saving=True)
     # connect data signals from <worker> to <window> (for plotting/logging)
     worker.signal4plot.connect(window.updatePlot)
     worker.signal4log.connect(window.updateLog)

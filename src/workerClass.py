@@ -22,6 +22,9 @@ class myWorker(pg.QtCore.QObject):
 
     All main parameters are controlled from the 
     config file, and passed through during runall.py
+    <myDetector> is opened as an attribute here,
+    so the parameters for that are passed from runall.py
+    into here as well.
     """
 
     ## initialize the QT signals that will be sent out to <myWindow>
@@ -33,48 +36,47 @@ class myWorker(pg.QtCore.QObject):
     # data for PSD visualization
     signal4psdplot = pg.QtCore.pyqtSignal(list)
 
-    def __init__(self,serial_name='/dev/cu.usbmodem53254001',
-                      buffer_len=1000,
-                      fname='../data/temp.csv',
-                      columns=['stamp','data'],
-                      max_analog_volts=3.3,
-                      analog_read_resolution=13,
-                      internal_sampling_rate=100,   # passed to detector
-                      moving_average_time=1.0,      # passed to detector
-                      psd_calc_window_time=0.1,     # passed to detector
-                      target_freq_index=1,          # passed to detector
-                      detection_threshold_up=0.6,   # passed to detector
-                      detection_threshold_down=0.4, # passed to detector
-                      lrlr_timerange=4,
-                      n_flicks=4,
-                      saving=False):
+    def __init__(self,serial_name,              # of Arduino
+                      data_buffer_len,          # n datapoints to keep in buffer
+                      max_analog_volts,         # for volts conversion
+                      analog_read_resolution,   # for volts conversion (unique to Teensy)
+                      internal_sampling_rate_hz,# passed to detector
+                      moving_average_secs,      # passed to detector
+                      psd_calc_window_secs,     # passed to detector
+                      target_freq_index,        # passed to detector, 2nd lowest freq recorded
+                      detection_threshold_up,   # passed to detector
+                      detection_threshold_down, # passed to detector
+                      lrlr_window_secs,         # secs that n peaks must occur within for detection
+                      n_peaks_for_lrlr_detection, # n peaks required to trigger detection
+                      data_fname,
+                      saving):
 
         super(self.__class__,self).__init__()
 
 
-        self.NAME = serial_name
-        self.BUFFER_LEN = buffer_len
-        self.SAVING = saving
-        self.FNAME = fname
-        self.COLUMNS = columns
+        self.SERIAL_NAME = serial_name
+        self.DATA_BUFFER_LEN = data_buffer_len
         self.MAX_ANALOG_VOLTS = max_analog_volts
         self.ANALOG_READ_RESOLUTION = analog_read_resolution
-        self.LRLR_TIMERANGE = lrlr_timerange
-        self.N_FLICKS = n_flicks
+        self.LRLR_WINDOW_SECS = lrlr_window_secs
+        self.N_PEAKS_FOR_LRLR_DETECTION = n_peaks_for_lrlr_detection
+        self.DATA_FNAME = data_fname
+        self.SAVING = saving
 
+        self.COLUMNS = ['timestamp','volts'] # of data output file
 
         # connect to serial
         try: # try to intialize connection with duino
             ## TODO: add timeout and baudrate args
-            self.duino = serial.Serial(self.NAME)
+            self.duino = serial.Serial(self.SERIAL_NAME)
         except serial.serialutil.SerialException:
             self.duino = None
             self.initializeSimulation()
 
         # initialize empty lists for holding data/time buffers
-        self.data = deque(maxlen=self.BUFFER_LEN)
-        self.stamps = deque(maxlen=self.BUFFER_LEN)
-        self.pollstamps = deque(maxlen=self.BUFFER_LEN)
+        self.data = deque(maxlen=self.DATA_BUFFER_LEN)
+        self.stamps = deque(maxlen=self.DATA_BUFFER_LEN)
+        self.pollstamps = deque(maxlen=self.DATA_BUFFER_LEN)
         ## TEMP just hvae pollstamps for testing
         ## to distinguish poll vs data incoming frequency
 
@@ -85,9 +87,9 @@ class myWorker(pg.QtCore.QObject):
         self.gain = 1 # start here, modulated from window slider
 
         # initialize detector
-        self.detector = myDetector(internal_sampling_rate,
-                                   moving_average_time,
-                                   psd_calc_window_time,
+        self.detector = myDetector(internal_sampling_rate_hz,
+                                   moving_average_secs,
+                                   psd_calc_window_secs,
                                    target_freq_index,
                                    detection_threshold_up,
                                    detection_threshold_down)
@@ -104,7 +106,7 @@ class myWorker(pg.QtCore.QObject):
 
     def _startNewFile(self):
         '''initializes file with column names only'''
-        with open(self.FNAME,'w') as newfile:
+        with open(self.DATA_FNAME,'w') as newfile:
             newfile.write(','.join(self.COLUMNS))
 
     def _saverow(self,rowlist):
@@ -113,7 +115,7 @@ class myWorker(pg.QtCore.QObject):
         ----
         rowlist : 1 value for each column
         '''
-        with open(self.FNAME,'a') as outfile:
+        with open(self.DATA_FNAME,'a') as outfile:
             outfile.write('\n'+','.join([ str(x) for x in rowlist ]))
 
     # @pg.QtCore.pyqtSlot(int) # maybe not necessary
@@ -144,8 +146,8 @@ class myWorker(pg.QtCore.QObject):
             # indicating the time of detection
             self.lrlr.append(self.stamps[-1])
             # check if the timepassed between all 4 is within range
-            if len(self.lrlr)==self.N_FLICKS \
-            and self.lrlr[-1]-self.lrlr[0] < self.LRLR_TIMERANGE:
+            if len(self.lrlr)==self.N_PEAKS_FOR_LRLR_DETECTION \
+            and self.lrlr[-1]-self.lrlr[0] < self.LRLR_WINDOW_SECS:
                 # send message to display, with most recent x value for plotting
                 self.signal4log.emit('Flick detected',False,self.stamps[-1])
                 # clear the flick record
@@ -208,7 +210,7 @@ class myWorker(pg.QtCore.QObject):
         
         # check for saccade
         # skip beginning of stream and soon after a found signal
-        if (len(self.data) >= self.BUFFER_LEN):
+        if (len(self.data) >= self.DATA_BUFFER_LEN):
 
             self.check4flick()
 

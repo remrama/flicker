@@ -2,17 +2,17 @@ import numpy as np
 from scipy.signal import welch
 
 class myDetector(object):
-    def __init__(self, internal_sampling_rate=100, # in Hz
-            moving_average_time=1.0, # in sec
-            psd_calc_window_time=0.1, # in sec
-            target_freq_index=1, # the second lowest frequency recorded
-            detection_threshold_up=0.6,
-            detection_threshold_down=0.4):
+    def __init__(self, internal_sampling_rate_hz, # in Hz
+            moving_average_secs, # in sec
+            psd_calc_window_secs, # in sec
+            target_freq_index, # the second lowest frequency recorded
+            detection_threshold_up,
+            detection_threshold_down):
         # load and interpret constants
-        self.INTERNAL_SAMPLING_RATE = float(internal_sampling_rate)
-        self.MOVING_AVERAGE_FRAMES = int(moving_average_time*self.INTERNAL_SAMPLING_RATE)
-        self.PSD_CALC_WINDOW_TIME = float(psd_calc_window_time)
-        self.PSD_WINDOW_FRAMES = int(self.INTERNAL_SAMPLING_RATE*self.PSD_CALC_WINDOW_TIME)
+        self.INTERNAL_SAMPLING_RATE_HZ = float(internal_sampling_rate_hz)
+        self.MOVING_AVERAGE_FRAMES = int(moving_average_secs*self.INTERNAL_SAMPLING_RATE_HZ)
+        self.PSD_CALC_WINDOW_SECS = float(psd_calc_window_secs)
+        self.PSD_WINDOW_FRAMES = int(self.INTERNAL_SAMPLING_RATE_HZ*self.PSD_CALC_WINDOW_SECS)
         self.TARGET_FREQ_INDEX = int(target_freq_index) # literally the [0,1,...,N] index of frequency band, should be changed
 
         # state
@@ -29,10 +29,10 @@ class myDetector(object):
         # time_history = np.cumsum(np.diff(unix_timestamps)) # convert unixtime to current time
         time_history = np.array(unix_timestamps) - unix_timestamps[0] # convert unixtime to current time
         volts_in_history = volts_in_history[::-1] # I think this needs to be reversed as done here? depends on input order
-        resampled_time = np.arange(0, self.PSD_CALC_WINDOW_TIME, 1/self.INTERNAL_SAMPLING_RATE)
+        resampled_time = np.arange(0, self.PSD_CALC_WINDOW_SECS, 1/self.INTERNAL_SAMPLING_RATE_HZ)
         assert len(resampled_time) == self.PSD_WINDOW_FRAMES # must be same for filtering to work
         resampled_volts_history = gain*np.interp(resampled_time, time_history, volts_in_history)
-        [sampled_freqs, signal_psd] = welch(resampled_volts_history, fs=self.INTERNAL_SAMPLING_RATE, window='boxcar', nperseg=self.PSD_WINDOW_FRAMES) #, noverlap=0)
+        [sampled_freqs, signal_psd] = welch(resampled_volts_history, fs=self.INTERNAL_SAMPLING_RATE_HZ, window='boxcar', nperseg=self.PSD_WINDOW_FRAMES) #, noverlap=0)
         softmax_signal_psd = softmax(signal_psd)
         target_signal_psd = softmax_signal_psd[self.TARGET_FREQ_INDEX]
         self.target_frequency_band_history = np.roll(self.target_frequency_band_history, 1)
