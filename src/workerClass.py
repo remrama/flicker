@@ -1,28 +1,36 @@
-
-from collections import deque
-
+"""
+See class docs
+"""
 import serial
 import numpy as np
 import pyqtgraph as pg
 from copy import copy
-
+from collections import deque
 from detectorClass import myDetector
 
-
-
-
 class myWorker(pg.QtCore.QObject):
-    '''
-    Collect data using a QObject so that it can
-    be placed on a QThread and run in the background.
-    Also saves data if told to.
-    '''
+    """
+    Collects data from Arduino.
+    Operates on its own thread (see runall.py).
 
-    # signal gets sent to the plotter with each "emit" call
+    Data is saved directly from this QObject,
+    but is also passed to myWindow via QT
+    signals/slots for plotting and event logging.
+
+    Various options/buttons from the GUI (<myWindow>) 
+    are passed here via QT signals/slots.
+
+    All main parameters are controlled from the 
+    config file, and passed through during runall.py
+    """
+
+    ## initialize the QT signals that will be sent out to <myWindow>
+    ## (they get sent out whenever their "emit()" attribute is called)
+    # data for <myWindow> to plot (volts,stamps,pollstamps)
     signal4plot = pg.QtCore.pyqtSignal(deque,deque,deque)
-    # signal gets sent to event list if signal detected
+    # message for <myWindow> to display and save to log file
     signal4log = pg.QtCore.pyqtSignal(str,bool,float)
-    # signal goes to psdplotter for visualization only
+    # data for PSD visualization
     signal4psdplot = pg.QtCore.pyqtSignal(list)
 
     def __init__(self,serial_name='/dev/cu.usbmodem53254001',

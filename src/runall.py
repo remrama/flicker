@@ -1,4 +1,17 @@
+"""
+Open flicker GUI.
 
+It's made using 3 distinct classes.
+Threading is performed using PyQT QThreads.
+
+<windowClass> is the main window.
+<workerClass> is what collects data from Arduino,
+    and operates on its own QThread. The data is 
+    saved on the same thread, but passed to <windowClass> 
+    for plotting and event logging using PyQT signals/slots.
+<detectorClass> is used to check for flicks (LRLR),
+    and is opened as an attribute on the workerClass.
+"""
 import sys
 import yaml
 import pyqtgraph as pg
@@ -10,17 +23,20 @@ from detectorClass import myDetector
 
 if __name__ == '__main__':
 
+    # load parameters from configuration file
     with open('config.yaml') as f:
         PARAMS = yaml.load(f,Loader=yaml.FullLoader)
 
+    # initialize the PyQT app
     app = pg.QtGui.QApplication([])
+
+    # create the main window
     window = myWindow(ymax=0.41209716796874996,
                       log_fname=PARAMS['log_fname'])
 
+    # open thread where the <worker> will be placed
     thread = pg.QtCore.QThread()
-
-    # data is collected on a separate thread
-    # and sent to GUI for plotting 
+    # create the <worker> QObject for data collection
     worker = myWorker(PARAMS['serial_name'],
                       PARAMS['buffer_len'],
                       PARAMS['data_fname'],
@@ -35,37 +51,20 @@ if __name__ == '__main__':
                       PARAMS['detection_threshold_down'],
                       PARAMS['lrlr_timerange'],
                       PARAMS['n_flicks'])
+    # connect data signals from <worker> to <window> (for plotting/logging)
     worker.signal4plot.connect(window.updatePlot)
     worker.signal4log.connect(window.updateLog)
+    # connect GUI signals from <window> to <worker> (for adjusting parameters)
     window.signal_gain4worker.connect(worker.update_gain)
     window.signal_to_gensignal.connect(worker.generateSignal)
     # worker.signal4psdplot.connect(window.psdplotwin.updatePlot)
+
+    # move the <worker> onto the separate <thread> (ie, QThread)
     worker.moveToThread(thread)
+    # start the <worker> thread (now they are one)
+    # and kick off with the function to grab data from Arduino
     thread.started.connect(worker.keepGrabbingData)
-
-    # # # data is also sent from the worker thread
-    # # # to the signal detector for finding saccades
-    # detector = myDetector(worker.duino)
-    # worker.detect_signal.connect(detector.check)
-
     thread.start()
 
+    # run the app
     sys.exit(app.exec_())
-
-
-    # objwork.finished.connect(objthread.quit)
-    # objthread.started.connect()
-
-    # # connect the data collection "threader" to the plotting function
-    # self.myThread = DataGrabber()
-    # self.myThread.start()
-    # self.myThread.signal.connect(self.update_plot)
-
-
-
-# if __name__ == '__main__':
-#     app = pg.QtGui.QApplication([])
-#     logging.info('App started')
-#     t0 = time.time() # for x-axis
-#     win = Window()
-#     sys.exit(app.exec_())
