@@ -2,7 +2,6 @@
 *.pyc
 
 data/
-design/
 docs/
 figures/
 lit/
