@@ -147,6 +147,11 @@ class myWorker(pg.QtCore.QObject):
                 if self.SAVING:
                     self._saverow(rowlist=[stamp,volt])
 
+            else:
+                # save to log if Arduino comes back empty, just curious for now
+                self.signal4log.emit('Serial poll came back empty',True,0)
+
+
             # wait a bit bc that makes it work :/
             serial.time.sleep(.001)
 
