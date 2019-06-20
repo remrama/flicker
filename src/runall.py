@@ -15,6 +15,7 @@ Threading is performed using PyQT QThreads.
 import sys
 import json
 import pyqtgraph as pg
+from time import strftime
 
 from windowClass import myWindow
 from workerClass import myWorker
@@ -27,12 +28,17 @@ if __name__ == '__main__':
     with open('config.json') as f:
         PARAMS = json.load(f)
 
+    # create a timestamp-based basename for data and log files
+    basename = strftime('%Y%m%dT%H%M%S')
+    data_fname = PARAMS['data_directory'] + basename + '.tsv'
+    log_fname  = PARAMS['data_directory'] + basename + '.log'
+
     # initialize the PyQT app
     app = pg.QtGui.QApplication([])
 
     # create the main window
     window = myWindow(ymax=0.41209716796874996,
-                      log_fname=PARAMS['log_fname'])
+                      log_fname=log_fname)
 
     # open thread where the <worker> will be placed
     thread = pg.QtCore.QThread()
@@ -49,7 +55,7 @@ if __name__ == '__main__':
                       PARAMS['detection_threshold_down'],
                       PARAMS['lrlr_window_secs'],
                       PARAMS['n_peaks_for_flick_detection'],
-                      PARAMS['data_fname'],
+                      data_fname=data_fname,
                       saving=True)
     # connect data signals from <worker> to <window> (for plotting/logging)
     worker.signal4plot.connect(window.updatePlot)

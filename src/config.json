@@ -1,7 +1,6 @@
 {
     "serial_name": "/dev/cu.usbmodem53254001",
-    "data_fname": "../data/data.csv",
-    "log_fname": "../data/data.log",
+    "data_directory": "../data/",
 
     "max_analog_volts": 3.3,
     "analog_read_resolution": 13,

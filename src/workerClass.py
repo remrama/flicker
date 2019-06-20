@@ -73,14 +73,14 @@ class myWorker(pg.QtCore.QObject):
         self.data = deque(maxlen=self.DATA_BUFFER_LEN)
         self.stamps = deque(maxlen=self.DATA_BUFFER_LEN)
         self.pollstamps = deque(maxlen=self.DATA_BUFFER_LEN)
-        ## TEMP just hvae pollstamps for testing
-        ## to distinguish poll vs data incoming frequency
 
         # empty deque to hold detected flicks,
         # to help detect 4 consecutive flicks (1 LRLR)
         self.lrlr = deque(maxlen=4)
 
-        self.gain = 1 # start here, modulated from window slider
+        # initialize gain, which is modulated by
+        # slider in main GUI and passed to <myDetector>
+        self.gain = 1
 
         # initialize detector
         self.detector = myDetector(internal_sampling_rate_hz,
