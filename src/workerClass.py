@@ -69,14 +69,6 @@ class myWorker(pg.QtCore.QObject):
 
         self.COLUMNS = ['timestamp','volts'] # of data output file
 
-        # connect to serial
-        try: # try to intialize connection with duino
-            ## TODO: add timeout and baudrate args
-            self.duino = serial.Serial(self.SERIAL_NAME)
-        except serial.serialutil.SerialException:
-            self.duino = None
-            self.initializeSimulation()
-
         # initialize empty lists for holding data/time buffers
         self.data = deque(maxlen=self.DATA_BUFFER_LEN)
         self.stamps = deque(maxlen=self.DATA_BUFFER_LEN)
@@ -98,8 +90,107 @@ class myWorker(pg.QtCore.QObject):
                                    detection_threshold_up,
                                    detection_threshold_down)
 
+
+    def keep_grabbingData_and_checking4flick(self):
+        """
+        Called during thread initialization (see runall.py).
+        Loops over
+            - grabbing data from Arduino
+            - send data (and more) to <myWindow>
+            - check for LRLR detection
+        """
+
+        # send one-time intialization message to <myWindow>
+        self.signal4log.emit('App started',False,0)
+
+        # open connection or simulate data on fail
+        self._connect2arduino()
+
+        # open new file with column names
         self._startNewFile()
 
+        while True: # run until GUI closes
+
+            # pull from Arduino or simulate data
+            if self.duino:
+                volt = self._grabData()
+            else:
+                volt = self._generateSimulatedData()
+
+            # collect a timestamp for this datapoint
+            stamp = serial.time.time()
+
+            # save a stamp to reflect the polling rate, even if not data returned
+            self.pollstamps.append(stamp)        
+
+            if volt: # sometimes Arduino doesn't send anything and so volts will be None
+                
+                # update data and stamp buffers
+                self.data.append(volt)
+                self.stamps.append(stamp)
+
+                # send them to <myWindow> where they will be plotted and saved
+                self.signal4plot.emit(copy(self.stamps),
+                                      copy(self.data),
+                                      copy(self.pollstamps))
+                ## TODO: better route than making copies?
+                ## issue was that plot would fail early,
+                ## i think bc "views" were being passed and deques would change
+                ## ie, after x was plotted, y would have a new value appended.
+                ## Could also init deques with 1000 zeros. dont like that either.
+
+                # check for LRLR series (skip beginning of stream)
+                if len(self.data) >= self.DATA_BUFFER_LEN:
+                    self._check4lrlr()
+
+                # save to file
+                if self.SAVING:
+                    self._saverow(rowlist=[stamp,volt])
+
+            # wait a bit bc that makes it work :/
+            serial.time.sleep(.001)
+
+
+    def _check4lrlr(self):
+        """
+        Look for <n_peaks_for_lrlr_detection>, and
+        trigger event if a LRLR is found.
+
+        Uses <myDetector> which checks for single peaks/flicks,
+        and keeps timestamps of the most recent peaks and checks
+        if <lrlr_window_secs> has passed between them.
+        """
+        # first check for a single flick/peak (ie, not a LRLR series)
+        self.detector.update_status(list(self.data),list(self.stamps),self.gain)
+        # if a peak, add to the running list of peaks
+        if self.detector.status == 'rising':
+            print 'rising'
+            # add the most recent timestamp indicating the time of detection
+            self.lrlr.append(self.stamps[-1])
+            # check if the timepassed between all 4 is within range
+            if len(self.lrlr)==self.N_PEAKS_FOR_LRLR_DETECTION \
+            and self.lrlr[-1]-self.lrlr[0] < self.LRLR_WINDOW_SECS:
+                # send message to display, with most recent x value for plotting
+                self.signal4log.emit('Flick detected',False,self.stamps[-1])
+                # clear the flick record, preventing rapid consecutive detections
+                self.lrlr.clear()
+                # # send to duino if wanna trigger something
+                # if self.duino is not None:
+                #     self.duino.write(bytes(1))
+
+
+    def _connect2arduino(self):
+        """
+        Try to open serial connection to Arduino
+        and start data simulation if fails.
+        """
+        try:
+            ## TODO: add timeout and baudrate args
+            self.duino = serial.Serial(self.SERIAL_NAME)
+        except serial.serialutil.SerialException:
+            self.duino = None
+            self.signal4log.emit('No serial connection, simulating data',True,0)
+            self.initializeSimulation()
 
     def _raw2volts(self,x):
         '''for conversion of sensor output to volts'''
@@ -124,107 +215,33 @@ class myWorker(pg.QtCore.QObject):
 
     # @pg.QtCore.pyqtSlot(int) # maybe not necessary
     def update_gain(self,new_gain):
+        """
+        Signal comes from <myWindow>
+        """
         self.gain = new_gain
 
-    def check4flick(self):
-        '''Look for signal in data passed in.
-        '''
-        # # grab a subset of data buffer
-        # data2search = list(islice(reversed(self.data),0,self.buffer_len)) # ugly slice bc of deque
-        # data2search = self.data # WHOLE THING
-        status, psdvals = self.detector.update_status(list(self.data),list(self.stamps),self.gain)
-        
-        # send psd to plot widget, even if not currently open
-        self.signal4psdplot.emit(list(psdvals))
+    def _grabData(self):
+        """
+        Grab single value from Arduino and convert to volts.
 
-        # handle flick
-        if status == 'rising':
-            print 'rising'
-            # log_and_display(win,'Flick detected')
-            # send to duino
-            # win.myThread.msleep(100)
-            # duino.write(bytes(1))
-            # time.sleep(1)
+        TODO
+        Currently this only returns the last value, even
+        if multiple values come through serial at once.
+        """
+        # receive from serial
+        str_vals = self.duino.readline()
+        # sometimes 2 vals get sent
+        list_str_vals = str_vals.split('\r')
+        rawvals = [ float(x) for x in list_str_vals if x.isalnum() ]
+        # sometimes Arduino sends nothing so make sure there is at least 1 value
+        if len(rawvals) > 0:
+            volts = self.__raw2volts(rawvals[-1])
+            return volts
 
-            # add the most recent timestamp
-            # indicating the time of detection
-            self.lrlr.append(self.stamps[-1])
-            # check if the timepassed between all 4 is within range
-            if len(self.lrlr)==self.N_PEAKS_FOR_LRLR_DETECTION \
-            and self.lrlr[-1]-self.lrlr[0] < self.LRLR_WINDOW_SECS:
-                # send message to display, with most recent x value for plotting
-                self.signal4log.emit('Flick detected',False,self.stamps[-1])
-                # clear the flick record
-                self.lrlr.clear()
-
-            # send to duino ## WHYY??
-            if self.duino is not None:
-                self.duino.write(bytes(1))
-
-        # elif self.duino is None:
-        #     # give a random simulate flick signal
-        #     if np.random.uniform() > .99:
-        #         self.signal4log.emit('Flick detected',False,self.stamps[-1])
-
-
-    def keepGrabbingData(self):
-        '''This is the function called to start thread.'''
-        # send some intro log messages
-        self.signal4log.emit('App started',False,0)
-        if self.duino is None:
-            self.signal4log.emit('No serial connection, simulating data',True,0)
-        while True:
-            self.grabData()
-            serial.time.sleep(.001)
-
-    def grabData(self):
-        '''
-        Grab data from the teensy by checking serial port.
-        This includes the emit() method, which automatically
-        sends its args to wherever it is latter 'connected'.
-        Doesn't return anything, just appends to buffers.
-        '''
-        try:
-            # receive from serial
-            ser_str = self.duino.readline()
-            # sometimes 2 vals get sent
-            sep = ser_str.split('\r')
-            vals = [ float(x) for x in sep if x.isalnum() ]
-        except AttributeError: # since duino is None-type if no duino
-            # simulate serial
-            vals = [self._volts2raw(self.generateSimulatedData())] # as list to match receive_serial output
-        stamp = serial.time.time()
-
-        ## TODO: currently this only includes the last
-        ## _if_ multiple values come thru serial at once
-        if len(vals) > 0:
-            v = self._raw2volts(vals[-1])
-            # update data buffer
-            self.data.append(v)
-            self.stamps.append(stamp)
-            self.pollstamps.append(stamp)
-            # save
-            if self.SAVING:
-                self._saverow(rowlist=[stamp,v])
-        else:
-            # log_and_display('Serial poll came back empty')
-            self.pollstamps.append(stamp)
-        # send signal to wherever it gets connected to
-        self.signal4plot.emit(copy(self.stamps),copy(self.data),copy(self.pollstamps))
-        
-        # check for saccade
-        # skip beginning of stream and soon after a found signal
-        if (len(self.data) >= self.DATA_BUFFER_LEN):
-
-            self.check4flick()
-
-        ## TEMP: better route than making copies?
-        ## issue was that plot would fail early,
-        ## i think bc "views" were being passed and deques would change
-        ## ie, after x was plotted, y would have a new value appended.
-        ## Could also init deques with 1000 zeros. dont like that either.
-
-    def generateSimulatedData(self):
+    def _generateSimulatedData(self):
+        """
+        Act as the Arduino/grabData() by simulating a single volts value.
+        """
         if len(self.stamps)>1:
             time_passed = self.stamps[-1]-self.stamps[-2]
         else:
@@ -234,7 +251,8 @@ class myWorker(pg.QtCore.QObject):
         low_freq_noise = self.low_freq_noise(np.random.normal(0,self.low_freq_noise_var),time_passed)
         signal = self.get_total_signal()
         noise = self.baseline_voltage+high_freq_noise+med_freq_noise+low_freq_noise
-        return signal+noise
+        volt = signal + noise
+        return volt
 
     def get_total_signal(self):
         total_signal = 0

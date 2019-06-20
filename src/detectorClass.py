@@ -75,7 +75,6 @@ class myDetector(object):
         elif self.status == 'falling':
             self.status = 'idle'
 
-        return self.status, softmax_signal_psd
 
 def softmax(x):
     """Compute softmax values for each sets of scores in x."""

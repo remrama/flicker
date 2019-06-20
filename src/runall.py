@@ -62,8 +62,9 @@ if __name__ == '__main__':
     # move the <worker> onto the separate <thread> (ie, QThread)
     worker.moveToThread(thread)
     # start the <worker> thread (now they are one)
-    # and kick off with the function to grab data from Arduino
-    thread.started.connect(worker.keepGrabbingData)
+    # and kick off with core <worker> function
+    # that grabs data from Arduino and checks for LRLR
+    thread.started.connect(worker.keep_grabbingData_and_checking4flick)
     thread.start()
 
     # run the app
