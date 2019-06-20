@@ -47,16 +47,19 @@ if __name__ == '__main__':
                       PARAMS['data_buffer_len'],
                       PARAMS['max_analog_volts'],
                       PARAMS['analog_read_resolution'],
-                      PARAMS['internal_sampling_rate_hz'],
-                      PARAMS['moving_average_secs'],
-                      PARAMS['psd_calc_window_secs'],
-                      PARAMS['target_freq_index'],
-                      PARAMS['detection_threshold_up'],
-                      PARAMS['detection_threshold_down'],
                       PARAMS['lrlr_window_secs'],
                       PARAMS['n_peaks_for_flick_detection'],
                       data_fname=data_fname,
                       saving=True)
+
+    # initialize detector as a <worker> attribute
+    worker.detector = myDetector(PARAMS['internal_sampling_rate_hz'],
+                                 PARAMS['moving_average_secs'],
+                                 PARAMS['psd_calc_window_secs'],
+                                 PARAMS['target_freq_index'],
+                                 PARAMS['detection_threshold_up'],
+                                 PARAMS['detection_threshold_down'])
+
     # connect data signals from <worker> to <window> (for plotting/logging)
     worker.signal4plot.connect(window.updatePlot)
     worker.signal4log.connect(window.updateLog)

@@ -40,17 +40,11 @@ class myWorker(pg.QtCore.QObject):
     # data for PSD visualization
     signal4psdplot = pg.QtCore.pyqtSignal(list)
 
-    def __init__(self,serial_name,              # of Arduino
-                      data_buffer_len,          # n datapoints to keep in buffer
-                      max_analog_volts,         # for volts conversion
-                      analog_read_resolution,   # for volts conversion (unique to Teensy)
-                      internal_sampling_rate_hz,# passed to detector
-                      moving_average_secs,      # passed to detector
-                      psd_calc_window_secs,     # passed to detector
-                      target_freq_index,        # passed to detector, 2nd lowest freq recorded
-                      detection_threshold_up,   # passed to detector
-                      detection_threshold_down, # passed to detector
-                      lrlr_window_secs,         # secs that n peaks must occur within for detection
+    def __init__(self,serial_name,                # of Arduino
+                      data_buffer_len,            # n datapoints to keep in buffer
+                      max_analog_volts,           # for volts conversion
+                      analog_read_resolution,     # for volts conversion (unique to Teensy)
+                      lrlr_window_secs,           # secs that n peaks must occur within for detection
                       n_peaks_for_lrlr_detection, # n peaks required to trigger detection
                       data_fname,
                       saving):
@@ -81,14 +75,6 @@ class myWorker(pg.QtCore.QObject):
         # initialize gain, which is modulated by
         # slider in main GUI and passed to <myDetector>
         self.gain = 1
-
-        # initialize detector
-        self.detector = myDetector(internal_sampling_rate_hz,
-                                   moving_average_secs,
-                                   psd_calc_window_secs,
-                                   target_freq_index,
-                                   detection_threshold_up,
-                                   detection_threshold_down)
 
 
     def keep_grabbingData_and_checking4flick(self):
