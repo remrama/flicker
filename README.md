@@ -61,6 +61,6 @@ The circuit board was designed using [Autodesk EAGLE](https://www.autodesk.com/p
 
 ---
 <p align=center>
-<img src=https://imgs.xkcd.com/comics/tcmp.png width=90% />
+<img src=https://imgs.xkcd.com/comics/tcmp.png width=90% /><br>
+<a href=https://xkcd.com/269/>xkcd</a>
 </p>
-<center><a href=https://xkcd.com/269/>xkcd</a></center>
