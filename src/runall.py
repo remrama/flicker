@@ -50,7 +50,8 @@ if __name__ == '__main__':
                       PARAMS['lrlr_window_secs'],
                       PARAMS['n_peaks_for_flick_detection'],
                       data_fname=data_fname,
-                      saving=True)
+                      saving=True,
+                      development_mode=bool(PARAMS['development_mode']))
 
     # initialize detector as a <worker> attribute
     worker.detector = myDetector(PARAMS['internal_sampling_rate_hz'],

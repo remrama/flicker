@@ -47,7 +47,8 @@ class myWorker(pg.QtCore.QObject):
                       lrlr_window_secs,           # secs that n peaks must occur within for detection
                       n_peaks_for_lrlr_detection, # n peaks required to trigger detection
                       data_fname,
-                      saving):
+                      saving,
+                      development_mode):
 
         super(self.__class__,self).__init__()
 
@@ -60,6 +61,7 @@ class myWorker(pg.QtCore.QObject):
         self.N_PEAKS_FOR_LRLR_DETECTION = n_peaks_for_lrlr_detection
         self.DATA_FNAME = data_fname
         self.SAVING = saving
+        self.DEV_MODE = development_mode
 
         self.COLUMNS = ['timestamp','volts'] # of data output file
 
@@ -98,7 +100,7 @@ class myWorker(pg.QtCore.QObject):
         while True: # run until GUI closes
 
             # pull from Arduino or simulate data
-            if self.duino:
+            if self.duino and not self.DEV_MODE:
                 volt = self._grabData()
             else:
                 volt = self._generateSimulatedData()
@@ -155,7 +157,7 @@ class myWorker(pg.QtCore.QObject):
         self.detector.update_status(list(self.data),list(self.stamps),self.gain)
         # if a peak, add to the running list of peaks
         if self.detector.status == 'rising':
-            print 'rising'
+            # print 'rising'
             # add the most recent timestamp indicating the time of detection
             self.lrlr.append(self.stamps[-1])
             # check if the timepassed between all 4 is within range
@@ -165,9 +167,9 @@ class myWorker(pg.QtCore.QObject):
                 self.signal4log.emit('Flick detected',False,self.stamps[-1])
                 # clear the flick record, preventing rapid consecutive detections
                 self.lrlr.clear()
-                # # send to duino if wanna trigger something
-                # if self.duino is not None:
-                #     self.duino.write(bytes(1))
+                # send to duino if wanna trigger something
+                if self.duino is not None:
+                    self.duino.write(bytes(1))
 
 
     def _connect2arduino(self):
@@ -178,6 +180,9 @@ class myWorker(pg.QtCore.QObject):
         try:
             ## TODO: add timeout and baudrate args
             self.duino = serial.Serial(self.SERIAL_NAME)
+            if self.DEV_MODE:
+                self.signal4log.emit('Connected to duino but simulating data for development mode',True,0)
+                self.initializeSimulation()
         except serial.serialutil.SerialException:
             self.duino = None
             self.signal4log.emit('No serial connection, simulating data',True,0)
@@ -226,7 +231,7 @@ class myWorker(pg.QtCore.QObject):
         rawvals = [ float(x) for x in list_str_vals if x.isalnum() ]
         # sometimes Arduino sends nothing so make sure there is at least 1 value
         if len(rawvals) > 0:
-            volts = self.__raw2volts(rawvals[-1])
+            volts = self._raw2volts(rawvals[-1])
             return volts
 
     def _generateSimulatedData(self):
